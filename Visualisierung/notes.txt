@@ -1,0 +1,26 @@
+
+
+
+transformed:
+	- all classes contained in package
+
+	AbstractCache:
+		- extended by subclasses
+		- contains called methods
+
+	NullCache:
+		- (NullCache) -[EXTENDS]-> (AbstractCache)
+		- ctor calls super ctor
+		- (NullCache) -[CONTAINS_METHOD]-> (Method) -[CONTROL_FLOW, CONTAINS_UNIT]-> (Assignment) -[CONTROL_FLOW]-> (return) -[LAST_UNIT]-> (NullCache)
+	
+	RealCache:
+		- (RealCacheCache) -[EXTENDS]-> (AbstractCache)
+		- ctor calls super ctor
+		- methods same as in original cache, but calles methods are now contained in AbstractCache
+		
+	MainClass:
+		- no change in main-method
+		- candidate methods do not have nop-nodes
+		- (Method1) -[CONTAINS_UNIT,CONTROL_FLOW]-> (Assignment) -[CONTROL_FLOW]-> (temp$#) -[DATA_FLOW,CONTROL_FLOW]-> (MethodCall) -[CALLS]-> (Method2) ...
+	                                                                                                                                 -[CONTROL_FLOW]-> (return) -[LAST_UNIT]-> (Method1)
+		 
