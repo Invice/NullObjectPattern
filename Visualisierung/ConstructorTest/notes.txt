@@ -1,0 +1,36 @@
+(ConstructorTest:Class) -[:CONTAINS_CONSTRUCTOR]-> (ctr:Constructor)
+(TestObject:Class) -[:CONTAINS_CONSTRUCTOR]-> (toCtr:Constructor) 
+(ConstructorTest) -[:CONTAINS_FIELD]-> (toField:Field)
+
+Fall 1  - inline initialisiert:
+
+#(ctr:Constructor) -[:AGGREGATED_FIELD_WRITE]-> (toField)
+#(ctr) -[:AGGREGATED_CALLS]-> (toCtr)
+#(ctr) -[:CONTROL_FLOW*]->(cc:ConstructorCall) -[:CONTROL_FLOW]-> (inlineAssignment:Assignment) -[:DATA_FLOW]-> (toField) 
+#(cc:ConstructorCall) -[:CALLS]->(toCtr)<-[CONTAINS_CONSTRUCTOR]-(toClass:Class)
+
+Fall 2 - im Constructor initialisiert:
+
+MATCH (:Class)-[:CONTAINS_FIELD]->(inMethod:Field)
+MATCH (ctr:Constructor)-[:CONTROL_FLOW*]->(cc:ConstructorCall)-[:CONTROL_FLOW]->(:Assignment)-[:DATA_FLOW]->(inMethod)
+MATCH (cc) -[:CALLS]->(toCtr)<-[CONTAINS_CONSTRUCTOR]-(toClass:Class)
+RETURN (toClass), (inMethod)
+
+
+#(ctr:Constructor) -[:AGGREGATED_FIELD_WRITE]-> (toField)
+#(ctr) -[:AGGREGATED_CALLS]-> (toCtr)
+#(ctr) -[:CONTROL_FLOW*]->(cc:ConstructorCall) -[:CONTROL_FLOW]-> (inConstructorAssignment:Assignment) -[:DATA_FLOW]-> (toField) 
+#(cc:ConstructorCall) -[:CALLS]->(toCtr)<-[CONTAINS_CONSTRUCTOR]-(toClass:Class)
+
+Fall 3 - Aufruf von init-Methode im Constructor
+
+MATCH (:Class)-[:CONTAINS_FIELD]->(inMethod:Field) 
+MATCH (ctr:Constructor)-[:AGGREGATED_CALLS*]->(foo:Method)-[:CONTROL_FLOW*]->(cc:ConstructorCall)-[:CONTROL_FLOW]->(:Assignment)-[:DATA_FLOW]->(inMethod)
+MATCH (cc) -[:CALLS]->(toCtr)<-[CONTAINS_CONSTRUCTOR]-(toClass:Class)
+RETURN (toClass), (inMethod)
+
+Fall 4 - Methode als Constructor
+
+MATCH (:Class)-[:CONTAINS_FIELD]->(inMethod:Field)
+MATCH (ctr:Constructor)-[:CONTROL_FLOW*]->(mc:MethodCallWithReturnValue)-[:DATA_FLOW]->(:Assignment)-[:DATA_FLOW]->(inMethod)
+RETURN (inMethod)
