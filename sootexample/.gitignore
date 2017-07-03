@@ -3,3 +3,5 @@
 /databases
 /teetime.log
 /target/
+!/databases/de.tnr.sdg.example.cache.MainCache
+!/databases/de.tnr.sdg.example.constructor.ConstructorTest

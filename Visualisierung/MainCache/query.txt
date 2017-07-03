@@ -1,5 +1,11 @@
 IF-ANWEISUNG:
-MATCH j=((n:Method) -[:CONTROL_FLOW]->(p:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(:Assignment)-[:CONTROL_FLOW]->(q:Condition)) WHERE (n)-[:CONTAINS_UNIT]->(p) MATCH k=((q)-[:CONTROL_FLOW*]->(:NopStmt {nopkind:"IF_END"})) RETURN j,k
 
-Method -> thisdeclaration:
-MATCH (n:Method) -[:CONTROL_FLOW]->(p:Assignment {operation:"thisdeclaration"}) WHERE (n)-[:CONTAINS_UNIT]->(p) RETURN n,p
+MATCH (:Class)-[:CONTAINS_FIELD]->(candidateField:Field)
+MATCH j=((method:Method) -[:CONTROL_FLOW]->(this:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(ifCond:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(tmpCond:Assignment)-[:CONTROL_FLOW]->(condEval:Condition {operation:"!="})-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_THEN"})-[:CONTROL_FLOW*]->(candidateCall:Assignment)-[:CONTROL_FLOW*]->(ifEnd:NopStmt {nopkind:"IF_END"})-[:CONTROL_FLOW*]->(:ReturnStmt)) 
+	WHERE (method)-[:CONTAINS_UNIT]->(this)	
+		AND (this)-[:DATA_FLOW]->(tmpCond)-[:DATA_FLOW]->(condEval) 
+		AND (candidateField)-[:DATA_FLOW ]->(tmpCond) 
+		AND (condEval.operand1="null" OR condEval.operand2="null")
+		AND (candidateField)-[:DATA_FLOW]->(candidateCall)-[:DATA_FLOW]->(:MethodCall)
+MATCH k=((condEval)-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_ELSE"})-[:CONTROL_FLOW*]->(ifEnd)) 
+RETURN j,k
