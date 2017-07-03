@@ -1,0 +1,8 @@
+-via-shimple
+
+-p shimple standard-local-names
+
+-p shimple node-elim-opt:false
+
+-p sop enabled:false
+-p sop.cpf prune-cfg:false

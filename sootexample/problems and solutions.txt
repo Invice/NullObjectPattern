@@ -1,0 +1,5 @@
+problem: phantom class
+
+solution: Phantom classes are implicitly created models of classes that do not exist on Soot's classpath. 
+	To get rid of this problem, make sure that the class you are referencing is on Soot's classpath.
+
