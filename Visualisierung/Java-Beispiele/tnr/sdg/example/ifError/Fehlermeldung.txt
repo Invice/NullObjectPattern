@@ -1,0 +1,69 @@
+Soot started on Wed Jun 28 13:14:53 CEST 2017
+Warning: java.lang.invoke.LambdaMetafactory is a phantom class!
+[Call Graph] For information on where the call graph may be incomplete, use the verbose option to the cg phase.
+[main] INFO de.chw.sdg.soot.transformation.PackageClassFieldTransformer - [wjap.preCreation] options: {enabled=true}
+Transforming de.tnr.sdg.example.ifError.Error... 
+[Thread-5] ERROR heros.solver.CountingThreadPoolExecutor - Worker thread execution failed: Unitbox points outside unitChain! to unit : nop in <de.tnr.sdg.example.ifError.Error: void main(java.lang.String[])>
+java.lang.RuntimeException: Unitbox points outside unitChain! to unit : nop in <de.tnr.sdg.example.ifError.Error: void main(java.lang.String[])>
+	at soot.validation.UnitBoxesValidator.validate(UnitBoxesValidator.java:22)
+	at soot.Body.validate(Body.java:256)
+	at soot.jimple.JimpleBody.validate(JimpleBody.java:120)
+	at soot.jimple.JimpleBody.validate(JimpleBody.java:110)
+	at soot.baf.BafBody.<init>(BafBody.java:63)
+	at soot.baf.Baf.newBody(Baf.java:560)
+	at soot.PackManager.convertJimpleBodyToBaf(PackManager.java:1061)
+	at soot.PackManager.runBodyPacks(PackManager.java:1017)
+	at soot.PackManager.access$0(PackManager.java:887)
+	at soot.PackManager$1.run(PackManager.java:643)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	at java.lang.Thread.run(Thread.java:745)
+Exception in thread "Thread-5" java.lang.RuntimeException: Unitbox points outside unitChain! to unit : nop in <de.tnr.sdg.example.ifError.Error: void main(java.lang.String[])>
+	at soot.validation.UnitBoxesValidator.validate(UnitBoxesValidator.java:22)
+	at soot.Body.validate(Body.java:256)
+	at soot.jimple.JimpleBody.validate(JimpleBody.java:120)
+	at soot.jimple.JimpleBody.validate(JimpleBody.java:110)
+	at soot.baf.BafBody.<init>(BafBody.java:63)
+	at soot.baf.Baf.newBody(Baf.java:560)
+	at soot.PackManager.convertJimpleBodyToBaf(PackManager.java:1061)
+	at soot.PackManager.runBodyPacks(PackManager.java:1017)
+	at soot.PackManager.access$0(PackManager.java:887)
+	at soot.PackManager$1.run(PackManager.java:643)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	at java.lang.Thread.run(Thread.java:745)
+java.lang.RuntimeException: Unitbox points outside unitChain! to unit : nop in <de.tnr.sdg.example.ifError.Error: void main(java.lang.String[])>
+	at soot.validation.UnitBoxesValidator.validate(UnitBoxesValidator.java:22)
+	at soot.Body.validate(Body.java:256)
+	at soot.jimple.JimpleBody.validate(JimpleBody.java:120)
+	at soot.jimple.JimpleBody.validate(JimpleBody.java:110)
+	at soot.baf.BafBody.<init>(BafBody.java:63)
+	at soot.baf.Baf.newBody(Baf.java:560)
+	at soot.PackManager.convertJimpleBodyToBaf(PackManager.java:1061)
+	at soot.PackManager.runBodyPacks(PackManager.java:1017)
+	at soot.PackManager.access$0(PackManager.java:887)
+	at soot.PackManager$1.run(PackManager.java:643)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	at java.lang.Thread.run(Thread.java:745)
+
+
+Ouuups... something went wrong! Sorry about that.
+Follow these steps to fix the problem:
+1.) Are you sure you used the right command line?
+    Click here to double-check:
+    https://ssebuild.cased.de/nightly/soot/doc/soot_options.htm
+
+2.) Not sure whether it's a bug? Feel free to discuss
+    the issue on the Soot mailing list:
+    https://github.com/Sable/soot/wiki/Getting-help
+
+3.) Sure it's a bug? Click this link to report it.
+    https://github.com/Sable/soot/issues/new?title=java.lang.RuntimeException+when+...&body=Steps+to+reproduce%3A%0A1.%29+...%0A%0AFiles+used+to+reproduce%3A+%0A...%0A%0ASoot+version%3A+%3Cpre%3Etrunk%3C%2Fpre%3E%0A%0ACommand+line%3A%0A%3Cpre%3E-cp+examples+-pp+-app+-w+-no-bodies-for-excluded+-keep-line-number+-p+jb+use-original-names%3Atrue+-p+jap.fieldrw+enabled%3Atrue+-p+tag.fieldrw+enabled%3Atrue+-p+jop.dae+off+-main-class+de.tnr.sdg.example.ifError.Error+de.tnr.sdg.example.ifError.Error%3C%2Fpre%3E%0A%0AMax+Memory%3A%0A%3Cpre%3E3634MB%3C%2Fpre%3E%0A%0AStack+trace%3A%0A%3Cpre%3Ejava.lang.RuntimeException%3A+Unitbox+points+outside+unitChain%21+to+unit+%3A+nop+in+%26%2360%3Bde.tnr.sdg.example.ifError.Error%3A+void+main%28java.lang.String%5B%5D%29%26%2362%3B%0D%0A%09at+soot.validation.UnitBoxesValidator.validate%28UnitBoxesValidator.java%3A22%29%0D%0A%09at+soot.Body.validate%28Body.java%3A256%29%0D%0A%09at+soot.jimple.JimpleBody.validate%28JimpleBody.java%3A120%29%0D%0A%09at+soot.jimple.JimpleBody.validate%28JimpleBody.java%3A110%29%0D%0A%09at+soot.baf.BafBody.%26%2360%3Binit%26%2362%3B%28BafBody.java%3A63%29%0D%0A%09at+soot.baf.Baf.newBody%28Baf.java%3A560%29%0D%0A%09at+soot.PackManager.convertJimpleBodyToBaf%28PackManager.java%3A1061%29%0D%0A%09at+soot.PackManager.runBodyPacks%28PackManager.java%3A1017%29%0D%0A%09at+soot.PackManager.access%240%28PackManager.java%3A887%29%0D%0A%09at+soot.PackManager%241.run%28PackManager.java%3A643%29%0D%0A%09at+java.util.concurrent.ThreadPoolExecutor.runWorker%28ThreadPoolExecutor.java%3A1145%29%0D%0A%09at+java.util.concurrent.ThreadPoolExecutor%24Worker.run%28ThreadPoolExecutor.java%3A615%29%0D%0A%09at+java.lang.Thread.run%28Thread.java%3A745%29%0D%0A%3C%2Fpre%3E
+    Please be as precise as possible when giving us
+    information on how to reproduce the problem. Thanks!
+[main] INFO de.chw.sdg.soot.visitor.Neo4JVisitor - Transforming inter procedural connections...
+[main] INFO de.chw.sdg.soot.visitor.Neo4JVisitor - Finished: Transforming inter procedural connections.
+[main] INFO de.chw.sdg.Sdg - Committing transaction...
+[main] INFO de.chw.sdg.Sdg - Closing transaction...
+[main] INFO de.chw.sdg.Sdg - End of main()
