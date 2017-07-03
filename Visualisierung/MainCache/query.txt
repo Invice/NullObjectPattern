@@ -1,0 +1,5 @@
+IF-ANWEISUNG:
+MATCH j=((n:Method) -[:CONTROL_FLOW]->(p:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(:Assignment)-[:CONTROL_FLOW]->(q:Condition)) WHERE (n)-[:CONTAINS_UNIT]->(p) MATCH k=((q)-[:CONTROL_FLOW*]->(:NopStmt {nopkind:"IF_END"})) RETURN j,k
+
+Method -> thisdeclaration:
+MATCH (n:Method) -[:CONTROL_FLOW]->(p:Assignment {operation:"thisdeclaration"}) WHERE (n)-[:CONTAINS_UNIT]->(p) RETURN n,p
