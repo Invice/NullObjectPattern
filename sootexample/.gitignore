@@ -1,6 +1,6 @@
 /bin
 /sootOutput
-/databases
+/databases/*
 /teetime.log
 /target/
 !/databases/de.tnr.sdg.example.cache.MainCache
