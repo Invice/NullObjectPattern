@@ -8,11 +8,20 @@ public class ConstructorTest {
 	private TestObject returnValue;
 	private TestObject nullObject = null;
 	private TestObject noInit;
+	private final TestObject finalObject;
 	
 	public ConstructorTest() {
 		inConstructor = new TestObject();
 		foo();
 		returnValue = foo3();
+		
+		//Meldung: Match gefunden, ist final. If-Anweisung kann gelöscht werden.
+		finalObject = new TestObject();
+	}
+
+	//If inline == null -> NullObject
+	public void setInline(TestObject inline) {
+		this.inline = inline;
 	}
 	
 	public void foo() {
@@ -27,6 +36,13 @@ public class ConstructorTest {
 		TestObject tmp = new TestObject();
 		return tmp;
 	}
+	
+	/*
+	 * TODO: Checker.java mit eigener main-Methode analysieren/evaluierten.
+	 * -> Update query
+	 * -> Gliederung BA
+	 */
+	
 	
 	public static void main(String[] args) {
 		ConstructorTest test = new ConstructorTest();
