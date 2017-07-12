@@ -18,7 +18,6 @@ import soot.SootMethod;
 import soot.Value;
 import soot.JastAddJ.Access;
 import soot.javaToJimple.jj.extension.FinalTag;
-import soot.javaToJimple.jj.extension.SyntheticLocalVarTag;
 import soot.javaToJimple.jj.extension.TypeArgumentsTag;
 import soot.javaToJimple.jj.extension.VariableDeclarationTag;
 import soot.jimple.ArrayRef;
@@ -123,9 +122,9 @@ public class DefinitionTransformer extends AbstractNodeTransformer {
 			node.setProperty(Keys.IS_FINAL, Boolean.TRUE);
 		}
 
-		if (unit.hasTag(SyntheticLocalVarTag.NAME)) {
-			node.setProperty(Keys.IS_SYNTHETIC, Boolean.TRUE);
-		}
+//		if (unit.hasTag(SyntheticLocalVarTag.NAME)) {
+//			node.setProperty(Keys.IS_SYNTHETIC, Boolean.TRUE);
+//		}
 
 		return node;
 	}

@@ -12,4 +12,5 @@
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="Java2Neo4J"/>
 <stringAttribute key="org.eclipse.jdt.launching.SOURCE_PATH_PROVIDER" value="org.eclipse.m2e.launchconfig.sourcepathProvider"/>
 <stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-DskipGoto=true&#13;&#10;-DalwaysProduceEndBranchStmt=true&#13;&#10;-DalwaysProduceEndForStmt=true"/>
+<booleanAttribute key="xrebel.isEnabled" value="false"/>
 </launchConfiguration>

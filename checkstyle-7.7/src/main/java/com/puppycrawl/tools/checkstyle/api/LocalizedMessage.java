@@ -54,7 +54,7 @@ public final class LocalizedMessage
      * A cache that maps bundle names to ResourceBundles.
      * Avoids repetitive calls to ResourceBundle.getBundle().
      */
-    private static final Map<String, ResourceBundle> BUNDLE_CACHE =
+    private static final Map<String, ResourceBundle> BUNDLE_CACHE = 
         Collections.synchronizedMap(new HashMap<>());
 
     /** The default severity level if one is not specified. */

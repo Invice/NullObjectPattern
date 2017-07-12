@@ -26,8 +26,4 @@ public class ClassTwo {
 		// TODO Auto-generated method stub
 
 	}
-	
-	public void foo4(){
-		
-	}
 }

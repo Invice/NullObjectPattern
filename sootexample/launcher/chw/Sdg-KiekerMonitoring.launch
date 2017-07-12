@@ -11,4 +11,5 @@
 <stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="-cp bin;&#13;&#10;-pp -app -w -no-bodies-for-excluded&#13;&#10;-keep-line-number&#13;&#10;-p jb use-original-names:true&#13;&#10;-main-class de.chw.sdg.example.kieker.KiekerMonitoring&#13;&#10;de.chw.sdg.example.kieker.KiekerMonitoring"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="Java2Neo4J"/>
 <stringAttribute key="org.eclipse.jdt.launching.SOURCE_PATH_PROVIDER" value="org.eclipse.m2e.launchconfig.sourcepathProvider"/>
+<booleanAttribute key="xrebel.isEnabled" value="false"/>
 </launchConfiguration>

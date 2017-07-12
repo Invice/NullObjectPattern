@@ -23,7 +23,7 @@ public class Keys {
 	public static final String LEFT_TYPE_ARGS = NamingUtil.INSTANCE.getPropertyKey("lefttypearguments");
 	public static final String IS_DECLARATION = NamingUtil.INSTANCE.getPropertyKey("isdeclaration");
 	public static final String IS_FINAL = NamingUtil.INSTANCE.getPropertyKey("isfinal");
-	public static final String IS_SYNTHETIC = NamingUtil.INSTANCE.getPropertyKey("issynthetic");
+//	public static final String IS_SYNTHETIC = NamingUtil.INSTANCE.getPropertyKey("issynthetic");
 	public static final String INDEX = NamingUtil.INSTANCE.getPropertyKey("index");
 	public static final String BASE = NamingUtil.INSTANCE.getPropertyKey("base");
 

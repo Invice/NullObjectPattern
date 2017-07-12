@@ -468,15 +468,15 @@ public class Neo4JVisitor implements StatementVisitor<Node> {
 				lastUnitTransformer.transform(targetNode, beginCondNode);
 
 				Unit successor = pdgNavigator.getSuccessorOf(unit);
-				Node successorNode = unitNodes.get(successor);
-				aggregatedCtrlFlowTransformer.transform(beginCondNode, successorNode);
+				if (successor != null) {
+					Node successorNode = unitNodes.get(successor);
+					aggregatedCtrlFlowTransformer.transform(beginCondNode, successorNode);
+				}
 			} else {
 				// do nothing
 				// e.g., handles the break stmt and the false case of an if stmt without a false branch
 			}
-		} else if (unit instanceof ReturnStmt
-				|| unit instanceof ReturnVoidStmt
-				|| unit instanceof ThrowStmt) {
+		} else if (unit instanceof ReturnStmt || unit instanceof ReturnVoidStmt || unit instanceof ThrowStmt) {
 			// BodyTag bodyTag = (BodyTag) targetUnit.getTag(BodyTag.NAME);
 			// if (bodyTag == null) {
 			// LOGGER.error("bodytag is null: " + targetUnit + ", class = " +

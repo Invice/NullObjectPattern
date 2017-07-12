@@ -128,7 +128,9 @@ public class UnitGraphTraverser implements PdgNavigator {
 	@Override
 	public Unit getSuccessorOf(Unit unit) {
 		List<Unit> successorUnits = getSuccessorUnits(unit);
-		if (successorUnits.size() != 1) {
+		if (successorUnits.size() == 0) {
+			return null;
+		} else if (successorUnits.size() > 1) {
 			throw new IllegalStateException("Unit has " + successorUnits.size() + " successors. It should have exactly 1.");
 		}
 		

@@ -36,13 +36,14 @@ public class If implements Cloneable {
 		} else {
 			return 2124;
 		}
+		// lets Java2Neo4J fail: no successor statement follows
 	}
 
-	// public int twoReturnsNoElse() {
-	// if (x < 2) {
-	// return x + 1;
-	// }
-	// // let's Soot fail
-	// return 2124;
-	// }
+	public int twoReturnsNoElse() {
+		if (x < 2) {
+			return x + 1;
+		}
+		// lets Soot fail
+		return 2124;
+	}
 }

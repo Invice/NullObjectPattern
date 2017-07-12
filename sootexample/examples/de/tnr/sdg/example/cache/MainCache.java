@@ -15,7 +15,6 @@ public class MainCache {
 		//System.out.println("Initialising Cache.");
 		if (cache == null) {
 			this.cache = new Cache();
-		} else {
 		}
 	}
 	
@@ -23,7 +22,6 @@ public class MainCache {
 		//System.out.println("Calling clearCache().");
 		if (cache != null) {
 			cache.reset();
-		} else {					
 		}
 	}
 	
@@ -31,7 +29,6 @@ public class MainCache {
 		//System.out.println("Calling cacheFile("+filename+").");
 		if (cache != null) {
 			cache.put(filename);
-		} else {
 		}
 	}
 	

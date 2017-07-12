@@ -1,22 +1,3 @@
-////////////////////////////////////////////////////////////////////////////////
-// checkstyle: Checks Java source code for adherence to a set of rules.
-// Copyright (C) 2001-2017 the original author or authors.
-//
-// This library is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 2.1 of the License, or (at your option) any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License along with this library; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-////////////////////////////////////////////////////////////////////////////////
-
 package com.puppycrawl.tools.checkstyle;
 
 import java.io.File;
@@ -31,28 +12,22 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import com.puppycrawl.tools.checkstyle.api.AuditEvent;
 import com.puppycrawl.tools.checkstyle.api.AuditListener;
-import com.puppycrawl.tools.checkstyle.api.AutomaticBean;
 import com.puppycrawl.tools.checkstyle.api.BeforeExecutionFileFilter;
 import com.puppycrawl.tools.checkstyle.api.BeforeExecutionFileFilterSet;
 import com.puppycrawl.tools.checkstyle.api.CheckstyleException;
 import com.puppycrawl.tools.checkstyle.api.Configuration;
 import com.puppycrawl.tools.checkstyle.api.Context;
-import com.puppycrawl.tools.checkstyle.api.ExternalResourceHolder;
 import com.puppycrawl.tools.checkstyle.api.FileSetCheck;
 import com.puppycrawl.tools.checkstyle.api.FileText;
 import com.puppycrawl.tools.checkstyle.api.Filter;
 import com.puppycrawl.tools.checkstyle.api.FilterSet;
 import com.puppycrawl.tools.checkstyle.api.LocalizedMessage;
-import com.puppycrawl.tools.checkstyle.api.MessageDispatcher;
-import com.puppycrawl.tools.checkstyle.api.RootModule;
 import com.puppycrawl.tools.checkstyle.api.SeverityLevel;
 import com.puppycrawl.tools.checkstyle.api.SeverityLevelCounter;
-import com.puppycrawl.tools.checkstyle.utils.CommonUtils;
+
 
 /**
  * This class provides the functionality to check a set of files.
@@ -61,12 +36,12 @@ import com.puppycrawl.tools.checkstyle.utils.CommonUtils;
  * @author lkuehne
  * @author Andrei Selkin
  */
-public class Checker extends AutomaticBean implements MessageDispatcher, RootModule {
+public class Checker /* extends AutomaticBean implements MessageDispatcher, RootModule*/ {
     /** Message to use when an exception occurs and should be printed as a violation. */
     public static final String EXCEPTION_MSG = "general.exception";
 
     /** Logger for Checker. */
-    private static final Log LOG = LogFactory.getLog(Checker.class);
+//    private static final Log LOG = LogFactory.getLog(Checker.class);
 
     /** Maintains error count. */
     private final SeverityLevelCounter counter = new SeverityLevelCounter(
@@ -107,7 +82,7 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
     private Context childContext;
 
     /** The file extensions that are accepted. */
-    private String[] fileExtensions = CommonUtils.EMPTY_STRING_ARRAY;
+    private String[] fileExtensions = new String[0];
 
     /**
      * The severity level of any violations found by submodules.
@@ -144,7 +119,7 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
      * @throws IOException if there are some problems with file loading.
      */
     public void setCacheFile(String fileName) throws IOException {
-        final Configuration configuration = getConfiguration();
+        final Configuration configuration/* = getConfiguration()*/ = null;
         cache = new PropertyCacheFile(configuration, fileName);
         cache.load();
     }
@@ -165,7 +140,6 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
         filters.removeFilter(filter);
     }
 
-    @Override
     public void destroy() {
         listeners.clear();
         beforeExecutionFileFilters.clear();
@@ -196,7 +170,6 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
         this.basedir = basedir;
     }
 
-    @Override
     public int process(List<File> files) throws CheckstyleException {
         if (cache != null) {
             cache.putExternalResources(getExternalResourceLocations());
@@ -212,10 +185,10 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
 
         // Finish up
         // It may also log!!!
-        fileSetChecks.forEach(FileSetCheck::finishProcessing);
+//        fileSetChecks.forEach(FileSetCheck::finishProcessing);
 
         // It may also log!!!
-        fileSetChecks.forEach(FileSetCheck::destroy);
+//        fileSetChecks.forEach(FileSetCheck::destroy);
 
         final int errorCount = counter.getCount();
         fireAuditFinished();
@@ -230,18 +203,18 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
      */
     private Set<String> getExternalResourceLocations() {
         final Set<String> externalResources = new HashSet<>();
-        fileSetChecks.stream().filter(check -> check instanceof ExternalResourceHolder)
-            .forEach(check -> {
-                final Set<String> locations =
-                    ((ExternalResourceHolder) check).getExternalResourceLocations();
-                externalResources.addAll(locations);
-            });
-        filters.getFilters().stream().filter(filter -> filter instanceof ExternalResourceHolder)
-            .forEach(filter -> {
-                final Set<String> locations =
-                    ((ExternalResourceHolder) filter).getExternalResourceLocations();
-                externalResources.addAll(locations);
-            });
+//        fileSetChecks.stream().filter(check -> check instanceof ExternalResourceHolder)
+//            .forEach(check -> {
+//                final Set<String> locations =
+//                    ((ExternalResourceHolder) check).getExternalResourceLocations();
+//                externalResources.addAll(locations);
+//            });
+//        filters.getFilters().stream().filter(filter -> filter instanceof ExternalResourceHolder)
+//            .forEach(filter -> {
+//                final Set<String> locations =
+//                    ((ExternalResourceHolder) filter).getExternalResourceLocations();
+//                externalResources.addAll(locations);
+//            });
         return externalResources;
     }
 
@@ -273,7 +246,7 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
                 final String fileName = file.getAbsolutePath();
                 final long timestamp = file.lastModified();
                 if (cache != null && cache.isInCache(fileName, timestamp)
-                        || !CommonUtils.matchesFileExtension(file, fileExtensions)
+//                        || !CommonUtils.matchesFileExtension(file, fileExtensions)
                         || !acceptFileStarted(fileName)) {
                     continue;
                 }
@@ -315,7 +288,7 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
             }
         }
         catch (final IOException ioe) {
-            LOG.debug("IOException occurred.", ioe);
+//            LOG.debug("IOException occurred.", ioe);
             fileMessages.add(new LocalizedMessage(0,
                     Definitions.CHECKSTYLE_BUNDLE, EXCEPTION_MSG,
                     new String[] {ioe.getMessage()}, null, getClass(), null));
@@ -326,7 +299,7 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
                 throw ex;
             }
 
-            LOG.debug("Exception occurred.", ex);
+//            LOG.debug("Exception occurred.", ex);
             fileMessages.add(new LocalizedMessage(0,
                     Definitions.CHECKSTYLE_BUNDLE, EXCEPTION_MSG,
                     new String[] {ex.getClass().getName() + ": " + ex.getMessage()},
@@ -343,7 +316,7 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
      * @return {@code true} if the file is accepted.
      */
     private boolean acceptFileStarted(String fileName) {
-        final String stripped = CommonUtils.relativizeAndNormalizePath(basedir, fileName);
+        final String stripped = ""/*CommonUtils.relativizeAndNormalizePath(basedir, fileName)*/;
         return beforeExecutionFileFilters.accept(stripped);
     }
 
@@ -353,9 +326,8 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
      * @param fileName
      *            the file to be audited
      */
-    @Override
     public void fireFileStarted(String fileName) {
-        final String stripped = CommonUtils.relativizeAndNormalizePath(basedir, fileName);
+        final String stripped = ""/*CommonUtils.relativizeAndNormalizePath(basedir, fileName)*/;
         final AuditEvent event = new AuditEvent(this, stripped);
         for (final AuditListener listener : listeners) {
             listener.fileStarted(event);
@@ -368,9 +340,8 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
      * @param fileName the audited file
      * @param errors the audit errors from the file
      */
-    @Override
     public void fireErrors(String fileName, SortedSet<LocalizedMessage> errors) {
-        final String stripped = CommonUtils.relativizeAndNormalizePath(basedir, fileName);
+        final String stripped = ""/*CommonUtils.relativizeAndNormalizePath(basedir, fileName)*/;
         boolean hasNonFilteredViolations = false;
         for (final LocalizedMessage element : errors) {
             final AuditEvent event = new AuditEvent(this, stripped, element);
@@ -392,16 +363,14 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
      * @param fileName
      *            the audited file
      */
-    @Override
     public void fireFileFinished(String fileName) {
-        final String stripped = CommonUtils.relativizeAndNormalizePath(basedir, fileName);
+        final String stripped = ""/*CommonUtils.relativizeAndNormalizePath(basedir, fileName)*/;
         final AuditEvent event = new AuditEvent(this, stripped);
         for (final AuditListener listener : listeners) {
             listener.fileFinished(event);
         }
     }
 
-    @Override
     public void finishLocalSetup() throws CheckstyleException {
         final Locale locale = new Locale(localeLanguage, localeCountry);
         LocalizedMessage.setLocale(locale);
@@ -429,7 +398,6 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
         childContext = context;
     }
 
-    @Override
     protected void setupChild(Configuration childConf)
             throws CheckstyleException {
         final String name = childConf.getName();
@@ -438,11 +406,11 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
         try {
             child = moduleFactory.createModule(name);
 
-            if (child instanceof AutomaticBean) {
-                final AutomaticBean bean = (AutomaticBean) child;
-                bean.contextualize(childContext);
-                bean.configure(childConf);
-            }
+//            if (child instanceof AutomaticBean) {
+//                final AutomaticBean bean = (AutomaticBean) child;
+//                bean.contextualize(childContext);
+//                bean.configure(childConf);
+//            }
         }
         catch (final CheckstyleException ex) {
             throw new CheckstyleException("cannot initialize module " + name
@@ -477,7 +445,7 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
      * @param fileSetCheck the additional FileSetCheck
      */
     public void addFileSetCheck(FileSetCheck fileSetCheck) {
-        fileSetCheck.setMessageDispatcher(this);
+//        fileSetCheck.setMessageDispatcher(this);
         fileSetChecks.add(fileSetCheck);
     }
 
@@ -497,7 +465,6 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
         filters.addFilter(filter);
     }
 
-    @Override
     public final void addListener(AuditListener listener) {
         listeners.add(listener);
     }
@@ -516,12 +483,12 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
             fileExtensions = new String[extensions.length];
             for (int i = 0; i < extensions.length; i++) {
                 final String extension = extensions[i];
-                if (CommonUtils.startsWithChar(extension, '.')) {
-                    fileExtensions[i] = extension;
-                }
-                else {
-                    fileExtensions[i] = "." + extension;
-                }
+//                if (CommonUtils.startsWithChar(extension, '.')) {
+//                    fileExtensions[i] = extension;
+//                }
+//                else {
+//                    fileExtensions[i] = "." + extension;
+//                }
             }
         }
     }
@@ -586,7 +553,6 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
         classLoader = loader;
     }
 
-    @Override
     public final void setModuleClassLoader(ClassLoader moduleClassLoader) {
         this.moduleClassLoader = moduleClassLoader;
     }
@@ -621,4 +587,20 @@ public class Checker extends AutomaticBean implements MessageDispatcher, RootMod
             cache.reset();
         }
     }
+    
+public static void main(String[] args) {
+   		
+   		Checker checker = new Checker();
+		ArrayList <File> files = new ArrayList<File>();
+		SortedSet<LocalizedMessage> errors = null;
+		
+		try {
+			checker.process(files);
+			checker.fireErrors("name", errors);
+		} catch (CheckstyleException e) {
+		}
+		
+		checker.clearCache();
+		checker.destroy();		
+	}
 }
