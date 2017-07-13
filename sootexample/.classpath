@@ -22,11 +22,11 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/home/froog/Studium/sem8/Abschlussprojekt2/NullObjectPattern/apache_commons/ant-1.10.1.jar"/>
-	<classpathentry kind="lib" path="/home/froog/Studium/sem8/Abschlussprojekt2/NullObjectPattern/apache_commons/antlr-3.5.2-complete.jar"/>
-	<classpathentry kind="lib" path="/home/froog/Studium/sem8/Abschlussprojekt2/NullObjectPattern/apache_commons/antlr-4.7-complete.jar"/>
-	<classpathentry kind="lib" path="/home/froog/Studium/sem8/Abschlussprojekt2/NullObjectPattern/apache_commons/commons-logging-1.2/commons-logging-1.2.jar"/>
-	<classpathentry kind="lib" path="/home/froog/Studium/sem8/Abschlussprojekt2/NullObjectPattern/apache_commons/commons-cli-1.4/commons-cli-1.4.jar"/>
-	<classpathentry kind="lib" path="/home/froog/Studium/sem8/Abschlussprojekt2/NullObjectPattern/apache_commons/commons-beanutils-1.9.3/commons-beanutils-1.9.3.jar"/>
+	<classpathentry kind="lib" path="lib/Checkstyle/ant-1.10.1.jar"/>
+	<classpathentry kind="lib" path="lib/Checkstyle/antlr-3.5.2-complete.jar"/>
+	<classpathentry kind="lib" path="lib/Checkstyle/antlr-4.7-complete.jar"/>
+	<classpathentry kind="lib" path="lib/Checkstyle/commons-beanutils-1.9.3/commons-beanutils-1.9.3.jar"/>
+	<classpathentry kind="lib" path="lib/Checkstyle/commons-cli-1.4/commons-cli-1.4.jar"/>
+	<classpathentry kind="lib" path="lib/Checkstyle/commons-logging-1.2/commons-logging-1.2.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
