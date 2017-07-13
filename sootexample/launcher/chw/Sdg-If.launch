@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <launchConfiguration type="org.eclipse.jdt.launching.localJavaApplication">
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
-<listEntry value="/Java2Neo4J/src/de/chw/sdg/Sdg.java"/>
+<listEntry value="/Java2Neo4J-tnr/src/de/chw/sdg/Sdg.java"/>
 </listAttribute>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
 <listEntry value="1"/>
@@ -11,7 +11,7 @@
 <stringAttribute key="org.eclipse.jdt.launching.CLASSPATH_PROVIDER" value="org.eclipse.m2e.launchconfig.classpathProvider"/>
 <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="de.chw.sdg.Sdg"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="-cp examples&#13;&#10;-pp -w&#13;&#10;-no-bodies-for-excluded&#13;&#10;-keep-line-number&#13;&#10;-p jb use-original-names:true&#13;&#10;-p jap.fieldrw enabled:true&#13;&#10;-p tag.fieldrw enabled:true&#13;&#10;-main-class de.chw.sdg.example.branch.If&#13;&#10;de.chw.sdg.example.branch.If"/>
-<stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="Java2Neo4J"/>
+<stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="Java2Neo4J-tnr"/>
 <stringAttribute key="org.eclipse.jdt.launching.SOURCE_PATH_PROVIDER" value="org.eclipse.m2e.launchconfig.sourcepathProvider"/>
 <stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-DskipGoto=true&#13;&#10;-DalwaysProduceEndBranchStmt=true&#13;&#10;-DalwaysProduceEndForStmt=true"/>
 <booleanAttribute key="xrebel.isEnabled" value="false"/>
