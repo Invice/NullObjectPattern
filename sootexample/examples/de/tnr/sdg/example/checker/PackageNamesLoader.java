@@ -64,10 +64,10 @@ public final class PackageNamesLoader
     private static final String PACKAGE_ELEMENT_NAME = "package";
 
     /** The temporary stack of package name parts. */
-    private final Deque<String> packageStack = new ArrayDeque<>();
+    private final Deque<String> packageStack = new ArrayDeque<String>();
 
     /** The fully qualified package names. */
-    private final Set<String> packageNames = new LinkedHashSet<>();
+    private final Set<String> packageNames = new LinkedHashSet<String>();
 
     /**
      * Creates a new {@code PackageNamesLoader} instance.
@@ -162,7 +162,10 @@ public final class PackageNamesLoader
         catch (IOException ex) {
             throw new CheckstyleException("unable to get package file resources", ex);
         }
-        catch (ParserConfigurationException | SAXException ex) {
+        catch (ParserConfigurationException ex) {
+            throw new CheckstyleException("unable to open one of package files", ex);
+        }
+        catch (SAXException ex) {
             throw new CheckstyleException("unable to open one of package files", ex);
         }
 

@@ -28,25 +28,8 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
     /** Message to use when an exception occurs and should be printed as a violation. */
     public static final String EXCEPTION_MSG = "general.exception";
 
-    /** Logger for Checker. */
-//    private static final Log LOG = LogFactory.getLog(Checker.class);
-
-    /** Maintains error count. */
-//    private final SeverityLevelCounter counter = new SeverityLevelCounter(
-//            SeverityLevel.ERROR);
-
-    /** Vector of listeners. */
-//    private final List<AuditListener> listeners = new ArrayList<>();
-
     /** Vector of fileset checks. */
     private final List<String> fileSetChecks = new ArrayList<String>();
-
-    /** The audit event before execution file filters. */
-//    private final BeforeExecutionFileFilterSet beforeExecutionFileFilters =
-//            new BeforeExecutionFileFilterSet();
-
-    /** The audit event filters. */
-//    private final FilterSet filters = new FilterSet();
 
     /** Class loader to resolve classes with. **/
     private ClassLoader classLoader = Thread.currentThread()
@@ -72,17 +55,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
     /** The file extensions that are accepted. */
     private String[] fileExtensions = new String[0];
 
-    /**
-     * The severity level of any violations found by submodules.
-     * The value of this property is passed to submodules via
-     * contextualize().
-     *
-     * <p>Note: Since the Checker is merely a container for modules
-     * it does not make sense to implement logging functionality
-     * here. Consequently Checker does not extend AbstractViolationReporter,
-     * leading to a bit of duplicated code for severity level setting.
-     */
-//    private SeverityLevel severityLevel = SeverityLevel.ERROR;
 
     /** Name of a charset. */
     private String charset = System.getProperty("file.encoding", "UTF-8");
@@ -98,7 +70,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      * The instance needs to be contextualized and configured.
      */
     public CheckerNullTest() {
-//        addListener(counter);
     }
 
     /**
@@ -111,22 +82,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
         cache = new PropertyCacheFile(configuration, fileName);
         cache.load();
     }
-
-    /**
-     * Removes before execution file filter.
-     * @param filter before execution file filter to remove.
-     */
-//    public void removeBeforeExecutionFileFilter(BeforeExecutionFileFilter filter) {
-//        beforeExecutionFileFilters.removeBeforeExecutionFileFilter(filter);
-//    }
-
-    /**
-     * Removes filter.
-     * @param filter filter to remove.
-     */
-//    public void removeFilter(Filter filter) {
-//        filters.removeFilter(filter);
-//    }
 
     public void destroy() {
         List<File> listeners = new ArrayList<File>();
@@ -151,14 +106,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
             }
         }
     }
-
-    /**
-     * Removes a given listener.
-     * @param listener a listener to remove
-     */
-//    public void removeListener(AuditListener listener) {
-//        listeners.remove(listener);
-//    }
 
     /**
      * Sets base directory.
@@ -202,35 +149,15 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      */
     private Set<String> getExternalResourceLocations() {
         final Set<String> externalResources = new HashSet<String>();
-//        fileSetChecks.stream().filter(check -> check instanceof ExternalResourceHolder)
-//            .forEach(check -> {
-//                final Set<String> locations =
-//                    ((ExternalResourceHolder) check).getExternalResourceLocations();
-//                externalResources.addAll(locations);
-//            });
-//        filters.getFilters().stream().filter(filter -> filter instanceof ExternalResourceHolder)
-//            .forEach(filter -> {
-//                final Set<String> locations =
-//                    ((ExternalResourceHolder) filter).getExternalResourceLocations();
-//                externalResources.addAll(locations);
-//            });
         return externalResources;
     }
 
     /** Notify all listeners about the audit start. */
     private void fireAuditStarted() {
-//        final AuditEvent event = new AuditEvent(this);
-//        for (final AuditListener listener : listeners) {
-//            listener.auditStarted(event);
-//        }
     }
 
     /** Notify all listeners about the audit end. */
     private void fireAuditFinished() {
-//        final AuditEvent event = new AuditEvent(this);
-//        for (final AuditListener listener : listeners) {
-//            listener.auditFinished(event);
-//        }
     }
 
     /**
@@ -245,7 +172,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
                 final String fileName = file.getAbsolutePath();
                 final long timestamp = file.lastModified();
                 if (cache != null && cache.isInCache(fileName, timestamp)
-//                        || CommonUtils.matchesFileExtension(file, fileExtensions)
                         || !acceptFileStarted(fileName)) {
                     continue;
                 }
@@ -329,20 +255,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      * @param errors the audit errors from the file
      */
     public void fireErrors(String fileName, SortedSet<String> errors) {
-//        final String stripped = CommonUtils.relativizeAndNormalizePath(basedir, fileName);
-//        boolean hasNonFilteredViolations = false;
-//        for (final LocalizedMessage element : errors) {
-//            final AuditEvent event = new AuditEvent(this, stripped, element);
-//            if (filters.accept(event)) {
-//                hasNonFilteredViolations = true;
-//                for (final AuditListener listener : listeners) {
-//                    listener.addError(event);
-//                }
-//            }
-//        }
-//        if (hasNonFilteredViolations && cache != null) {
-//            cache.remove(fileName);
-//        }
     }
 
     /**
@@ -352,17 +264,11 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      *            the audited file
      */
     public void fireFileFinished(String fileName) {
-//        final String stripped = CommonUtils.relativizeAndNormalizePath(basedir, fileName);
-//        final AuditEvent event = new AuditEvent(this, stripped);
-//        for (final AuditListener listener : listeners) {
-//            listener.fileFinished(event);
-//        }
     }
 
     public void finishLocalSetup() throws CheckstyleException {
         @SuppressWarnings("unused")
 		final Locale locale = new Locale(localeLanguage, localeCountry);
-//        LocalizedMessage.setLocale(locale);
 
         if (moduleFactory == null) {
 
@@ -375,17 +281,13 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
             @SuppressWarnings("unused")
 			final Set<String> packageNames = PackageNamesLoader
                     .getPackageNames(moduleClassLoader);
-//            moduleFactory = new PackageObjectFactory(packageNames,
-//                    moduleClassLoader);
         }
 
         final List<Pair<String, Object>> context = new ArrayList<Pair<String, Object>>();
         context.add(new Pair<String, Object>("charset", charset));
         context.add(new Pair<String, Object>("classLoader", classLoader));
         context.add(new Pair<String, Object>("moduleFactory", moduleFactory));
-//        context.add("severity", severityLevel.getName());
         context.add(new Pair<String, Object>("basedir", basedir));
-//        childContext = context;
     }
 
     protected void setupChild(Configuration childConf)
@@ -396,38 +298,13 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
 
         try {
             child = moduleFactory.createModule(name);
-
-//            if (child instanceof AutomaticBean) {
-//                final AutomaticBean bean = (AutomaticBean) child;
-//                bean.contextualize(childContext);
-//                bean.configure(childConf);
-//            }
         }
         catch (final CheckstyleException ex) {
             throw new CheckstyleException("cannot initialize module " + name
                     + " - " + ex.getMessage(), ex);
         }
-//        if (child instanceof FileSetCheck) {
-//            final FileSetCheck fsc = (FileSetCheck) child;
-//            fsc.init();
-//            addFileSetCheck(fsc);
-//        }
-//        else if (child instanceof BeforeExecutionFileFilter) {
-//            final BeforeExecutionFileFilter filter = (BeforeExecutionFileFilter) child;
-//            addBeforeExecutionFileFilter(filter);
-//        }
-//        else if (child instanceof Filter) {
-//            final Filter filter = (Filter) child;
-//            addFilter(filter);
-//        }
-//        else if (child instanceof AuditListener) {
-//            final AuditListener listener = (AuditListener) child;
-//            addListener(listener);
-//        }
-        
             throw new CheckstyleException(name
                     + " is not allowed as a child in Checker");
-        
     }
 
     /**
@@ -436,7 +313,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      * @param fileSetCheck the additional FileSetCheck
      */
     public void addFileSetCheck(String fileSetCheck) {
-//        fileSetCheck.setMessageDispatcher(this);
         fileSetChecks.add(fileSetCheck);
     }
 
@@ -445,7 +321,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      * @param filter the additional filter
      */
     public void addBeforeExecutionFileFilter(String filter) {
-//        beforeExecutionFileFilters.addBeforeExecutionFileFilter(filter);
     }
 
     /**
@@ -453,11 +328,9 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      * @param filter the additional filter
      */
     public void addFilter(String filter) {
-//        filters.addFilter(filter);
     }
 
     public final void addListener(String listener) {
-//        listeners.add(listener);
     }
 
     /**
@@ -517,7 +390,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
      * @see SeverityLevel
      */
     public final void setSeverity(String severity) {
-//        severityLevel = SeverityLevel.getInstance(severity);
     }
 
     /**
@@ -588,7 +460,6 @@ public class CheckerNullTest /* extends AutomaticBean implements MessageDispatch
 		
 		try {
 			checker.process(files);
-			checker.fireErrors("name", errors);
 		} catch (CheckstyleException e) {
 		}
 		

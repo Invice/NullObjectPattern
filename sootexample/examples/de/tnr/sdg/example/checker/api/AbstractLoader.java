@@ -69,7 +69,7 @@ public abstract class AbstractLoader
      */
     protected AbstractLoader(String publicId, String dtdResourceName)
             throws SAXException, ParserConfigurationException {
-        this(new HashMap<>(1));
+        this(new HashMap<Object, Object>(1));
         publicIdToResourceNameMap.put(publicId, dtdResourceName);
     }
 
@@ -81,7 +81,7 @@ public abstract class AbstractLoader
      */
     protected AbstractLoader(HashMap<Object, Object> hashMap)
             throws SAXException, ParserConfigurationException {
-        this.publicIdToResourceNameMap = new HashMap<>(hashMap);
+        this.publicIdToResourceNameMap = new HashMap<Object, Object>(hashMap);
         final SAXParserFactory factory = SAXParserFactory.newInstance();
         factory.setFeature(LOAD_EXTERNAL_DTD, true);
         factory.setFeature(EXTERNAL_GENERAL_ENTITIES, true);

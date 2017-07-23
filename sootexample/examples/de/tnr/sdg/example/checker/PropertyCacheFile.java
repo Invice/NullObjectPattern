@@ -232,7 +232,11 @@ import de.tnr.sdg.example.checker.api.Configuration;
 
             return DatatypeConverter.printHexBinary(digest.digest());
         }
-        catch (final IOException | NoSuchAlgorithmException ex) {
+        catch (final IOException ex) {
+            // rethrow as unchecked exception
+            throw new IllegalStateException("Unable to calculate hashcode.", ex);
+        }
+        catch (final NoSuchAlgorithmException ex){
             // rethrow as unchecked exception
             throw new IllegalStateException("Unable to calculate hashcode.", ex);
         }
@@ -257,7 +261,7 @@ import de.tnr.sdg.example.checker.api.Configuration;
      * @return a set of {@link ExternalResource}.
      */
     private static Set<ExternalResource> loadExternalResources(Set<String> resourceLocations) {
-        final Set<ExternalResource> resources = new HashSet<>();
+        final Set<ExternalResource> resources = new HashSet<ExternalResource>();
         for (String location : resourceLocations) {
             String contentHashSum = null;
             try {
@@ -287,14 +291,12 @@ import de.tnr.sdg.example.checker.api.Configuration;
     private static byte[] loadExternalResource(String location) throws CheckstyleException {
         final byte[] content;
         final URI uri = URI.create("url");
-
         try {
             content = ByteStreams.toByteArray(new BufferedInputStream(uri.toURL().openStream()));
         }
         catch (IOException ex) {
             throw new CheckstyleException("Unable to load external resource file " + location, ex);
         }
-
         return content;
     }
 

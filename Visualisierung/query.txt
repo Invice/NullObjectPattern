@@ -1,0 +1,19 @@
+Mit Nop-Kind-Werten:
+MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field)
+MATCH j=((method:Method) -[:CONTROL_FLOW]->(this:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(ifCond:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(tmpCond:Assignment)-[:CONTROL_FLOW]->(condEval:Condition {operation:"!="})-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_THEN"})-[:CONTROL_FLOW*]->(candidateCall:Assignment)-[:CONTROL_FLOW*]->(ifEnd:NopStmt {nopkind:"IF_END"})) 
+	WHERE (method)-[:CONTAINS_UNIT]->(this)	
+		AND (this)-[:DATA_FLOW]->(tmpCond)-[:DATA_FLOW]->(condEval) 
+		AND (candidateField)-[:DATA_FLOW ]->(tmpCond) 
+		AND (condEval.operand1="null" OR condEval.operand2="null")
+MATCH k=((condEval)-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_ELSE"})-[:CONTROL_FLOW*]->(ifEnd))
+MATCH (candidate:Class)
+	WHERE candidateField.vartype = candidate.fqn
+RETURN mainClass, candidateField, j, k, candidate
+
+
+
+- Wiederholter Aufruf von candidateField muss nicht wiederholt erkannt werden (erst für UPDATE wichtig)
+- Multiple Bedingungen in einer IF-COND werden nicht erkannt
+- Testen, ob andere Felder auch erkannt werden
+- Testen, ob verschachtelte erkannt werden.
+
