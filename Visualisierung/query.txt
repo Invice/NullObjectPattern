@@ -1,17 +1,18 @@
 Match-Query mit Nop-Kind-Werten:
 
-MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field)
-MATCH j=((method:Method) -[:CONTROL_FLOW]->(this:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(ifCond:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(tmpCond:Assignment)-[:CONTROL_FLOW]->(condEval:Condition {operation:"!="})-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_THEN"})-[:CONTROL_FLOW*]->(candidateCall:Assignment)-[:CONTROL_FLOW*]->(ifEnd:NopStmt {nopkind:"IF_END"})) 
-	WHERE (method)-[:CONTAINS_UNIT]->(this)	
-		AND (this)-[:DATA_FLOW]->(tmpCond)-[:DATA_FLOW]->(condEval) 
+PROFILE
+MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
+USING INDEX candidateField:Field(isfinal)
+WITH mainClass, candidateField, method
+MATCH j=((method) -[:CONTROL_FLOW]->(thisAssign:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(ifCond:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(tmpCond:Assignment)-[:CONTROL_FLOW]->(condEval:Condition {operation:"!="})-[:CONTROL_FLOW]->(ifThen:NopStmt {nopkind:"IF_THEN"})-[:CONTROL_FLOW*]->(candidateCall:Assignment)-[:CONTROL_FLOW*]->(ifEnd:NopStmt {nopkind:"IF_END"})) 
+	USING INDEX condEval:Condition(operation) USING INDEX ifEnd:NopStmt(nopkind) USING INDEX ifThen:NopStmt(nopkind) USING INDEX ifCond:NopStmt(nopkind)
+	WHERE (thisAssign)-[:DATA_FLOW]->(tmpCond)-[:DATA_FLOW]->(condEval) 
 		AND (candidateField)-[:DATA_FLOW ]->(tmpCond) 
 		AND (condEval.operand1="null" OR condEval.operand2="null")
-MATCH k=((condEval)-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_ELSE"})-[:CONTROL_FLOW*]->(ifEnd))
-MATCH (candidate:Class)
-	WHERE candidateField.vartype = candidate.fqn
-RETURN DISTINCT mainClass, candidateField, j, k, candidate
+MATCH (candidate:Class {fqn:candidateField.vartype})
+RETURN DISTINCT mainClass, candidateField, method,j, candidate
 
-
+DEP? MATCH k=((condEval)-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_ELSE"})-[:CONTROL_FLOW*]->(ifEnd))
 
 - Wiederholter Aufruf von candidateField muss nicht wiederholt erkannt werden (erst für UPDATE wichtig)
 - Multiple Bedingungen in einer IF-COND werden nicht erkannt
@@ -20,9 +21,9 @@ RETURN DISTINCT mainClass, candidateField, j, k, candidate
 
 
 MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field)
-MATCH j=((method:Method) -[:CONTROL_FLOW]->(this:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(ifCond:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(tmpCond:Assignment)-[:CONTROL_FLOW]->(condEval:Condition {operation:"!="})-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_THEN"})-[:CONTROL_FLOW*]->(candidateCall:Assignment)-[:CONTROL_FLOW*]->(ifEnd:NopStmt {nopkind:"IF_END"})) 
-	WHERE (method)-[:CONTAINS_UNIT]->(this)	
-		AND (this)-[:DATA_FLOW]->(tmpCond)-[:DATA_FLOW]->(condEval) 
+MATCH j=((method:Method) -[:CONTROL_FLOW]->(thisAssign:Assignment {operation:"thisdeclaration"})-[:CONTROL_FLOW*]->(ifCond:NopStmt {nopkind:"IF_COND"})-[:CONTROL_FLOW]->(tmpCond:Assignment)-[:CONTROL_FLOW]->(condEval:Condition {operation:"!="})-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_THEN"})-[:CONTROL_FLOW*]->(candidateCall:Assignment)-[:CONTROL_FLOW*]->(ifEnd:NopStmt {nopkind:"IF_END"})) 
+	WHERE (method)-[:CONTAINS_UNIT]->(thisAssign)	
+		AND (thisAssign)-[:DATA_FLOW]->(tmpCond)-[:DATA_FLOW]->(condEval) 
 		AND (candidateField)-[:DATA_FLOW ]->(tmpCond) 
 		AND (condEval.operand1="null" OR condEval.operand2="null")
 MATCH k=((condEval)-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_ELSE"})-[:CONTROL_FLOW*]->(ifEnd))
@@ -31,6 +32,31 @@ MATCH (package:Package) --> (candidate:Class)
 RETURN DISTINCT candidate, candidateField, package
 
 
+58 condition
+	
+	
+NEUE TESTS:	
+	
+MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
+	USING INDEX candidateField:Field(isfinal)
+MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:"!="})
+	USING INDEX condition:Condition(operation)
+	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
+MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  
+	USING INDEX ifStmt:NopStmt(nopkind)
+	WHERE ifStmt.nopkind = "IF_COND" OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)
+MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..10]->(return:ReturnStmt))
+	WHERE (return)-[:LAST_UNIT]->(method)
+RETURN DISTINCT candidateField, method, condition, condVariable, ifStmt, return
 
-	
-	
+MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
+	USING INDEX candidateField:Field(isfinal)
+MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:"!="})
+	USING INDEX condition:Condition(operation)
+	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
+MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt {nopkind:"IF_COND"})  
+	USING INDEX ifStmt:NopStmt(nopkind)
+MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*]->(return:ReturnStmt))
+	WITH p 
+	WHERE ANY (node IN nodes(p) where (node:ReturnStmt)-[:LAST_UNIT]->(method))
+RETURN DISTINCT p
