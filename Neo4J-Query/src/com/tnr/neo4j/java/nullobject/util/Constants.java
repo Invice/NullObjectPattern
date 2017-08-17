@@ -1,4 +1,4 @@
-package com.tnr.neo4j.java.util;
+package com.tnr.neo4j.java.nullobject.util;
 
 public class Constants {
 	public static final String GraphDatabaseLocation = "C:\\Users\\Tim-Niklas Reck\\Desktop\\Bachelorarbeit\\sootexample\\databases\\";

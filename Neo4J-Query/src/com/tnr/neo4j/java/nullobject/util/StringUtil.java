@@ -1,4 +1,4 @@
-package com.tnr.neo4j.java.util;
+package com.tnr.neo4j.java.nullobject.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,15 +37,15 @@ public class StringUtil {
 	/**
 	 * Transforms the package string of a given method to match a transformed candidate.
 	 * @param classPath the new classpath
-	 * @param methodPath the old methodpath (fqn)
+	 * @param methodFqn the old methodpath (fqn)
 	 * @return
 	 */
-	public static String addClassPathToMethod(String classPath, final String methodPath){
+	public static String addClassPathToMethod(String classPath, final String methodFqn){
 		
 		/*
 		 * TODO: check for transformed arguments
 		 */
-		String[] method = methodPath.split("\\(");
+		String[] method = methodFqn.split("\\(");
 		List<String> parts = new ArrayList<>(Arrays.asList(method[0].split("\\.")));
 		
 		return classPath + "." + parts.get(parts.size()-1) + "(" + method[1];
