@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -22,13 +23,13 @@ import com.tnr.neo4j.java.nullobject.util.StringUtil;
 
 public class Transformation {
 	
-	private GraphDatabaseService dbService = new GraphDatabaseFactory().newEmbeddedDatabase(new File(Constants.GraphDatabaseLocation + Constants.GraphDatabaseName));
+	private final GraphDatabaseService dbService = new GraphDatabaseFactory().newEmbeddedDatabase(new File(Constants.GraphDatabaseLocation + Constants.GraphDatabaseName));
 	
 	/*
 	 * Used by method createIndexes().
 	 */
 	private Iterable<IndexDefinition> indexes;
-	private Schema schema;
+	private Schema schema = null;
 	
 	/*
 	 * Used by transforming and matching methods.
@@ -37,36 +38,19 @@ public class Transformation {
 	Map<String, Node> distinctCandidateFields = new HashMap<>();
 	
 	private enum RelTypes implements RelationshipType {
-		EXTENDS, CONTAINS_TYPE, CONTAINS_METHOD, DATA_FLOW, CONTROL_FLOW, CALLS, AGGREGATED_CALLS, LAST_UNIT
+		EXTENDS, CONTAINS_TYPE, CONTAINS_METHOD, DATA_FLOW, CONTROL_FLOW, CALLS, AGGREGATED_CALLS, LAST_UNIT, CONTAINS_FIELD, CONTAINS_UNIT
 	}
 	
-	public static final String matchQuery = ""
-			+ "MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)\n\u0009"
-				+ "USING INDEX candidateField:Field(isfinal)\n"
-			+ "MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:\"!=\"})\n\u0009"
-				+ "USING INDEX condition:Condition(operation)\n\u0009"
-				+ "WHERE condition.operand1 = \"null\" "
-					+ "OR condition.operand2 = \"null\"\n"
-			+ "MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  \n\u0009"
-				+ "WHERE ifStmt.nopkind = \"IF_COND\" "
-					+ "OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)\n"
-			+ "MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..]->(return:ReturnStmt))\n\u0009"
-				+ "WHERE (return)-[:LAST_UNIT]->(method)\n"
-			+ "RETURN DISTINCT candidateField";//, method, condition, condVariable, ifStmt, return";
 	
-	public static final String indexQuery = ""
-			+ "CREATE INDEX ON :Condition(operation) "
-			+ "CREATE INDEX ON :Field(isfinal) "
-			+ "CREATE INDEX ON :NopStmt(nopkind) "
-			+ "CREATE INDEX ON :Class(fqn) "
-			+ "CREATE INDEX ON :Package(name) ";
-			
 	/**
 	 * Creates necessary indexes, if they don't already exist.
 	 */
 	public void createIndexes() {
 		try (Transaction tx = dbService.beginTx()){
-			schema = dbService.schema();
+			
+			if (schema == null){
+				schema = dbService.schema();
+			}
 			indexes = schema.getIndexes();
 			tx.success();
 		}
@@ -93,8 +77,8 @@ public class Transformation {
 			
 			if (!indexed) {
 					schema.indexFor(Label.label(label)).on(property).create();
-					tx.success();
 			}
+			tx.success();
 		}
 	}
 	
@@ -103,8 +87,9 @@ public class Transformation {
 	 */
 	public void getIndexes() {
 		try (Transaction tx = dbService.beginTx()){
-			Schema schema = dbService.schema();
-	
+			if (schema == null){
+				schema = dbService.schema();
+			}
 			Iterable<IndexDefinition> indexes = schema.getIndexes();
 			
 			for (IndexDefinition def : indexes) {
@@ -125,7 +110,7 @@ public class Transformation {
 		/*
 		 * Find candidates using the Cypher Match Query
 		 */
-		Result queryResult =  dbService.execute(Transformation.matchQuery);
+		Result queryResult =  dbService.execute(Constants.MATCH_QUERY);
 		ResourceIterator<Node> candidateFields = queryResult.columnAs("candidateField");
 		
 		/*
@@ -156,6 +141,8 @@ public class Transformation {
 		/*
 		 * Create new class nodes for each candidate
 		 */
+
+		System.out.println("Transformed nodes:");
 		for (Map.Entry<String, Node> distinctCandidate : distinctCandidateFields.entrySet()){
 			
 			String vartype = "";
@@ -239,17 +226,16 @@ public class Transformation {
 					
 					
 					/*
-					 * Change node to abstractNode
+					 * Change node to abstractNode and update candidate vartype.
 					 */
 					classNode.setProperty("fqn", abstractFqn);
 					classNode.setProperty("displayname", "Abstract" + properties.get("displayname"));
 					classNode.setProperty("name", "Abstract" + properties.get("name"));
-					tx.success();
+					distinctCandidate.getValue().setProperty("vartype", abstractFqn);
 					
 					/*
 					 * Create new methods and change alignments.
 					 */
-					
 					String methodQuery = 
 							"MATCH (class:Class)-[:CONTAINS_METHOD]->(method:Method)\n"
 									+ "WHERE id(class) = " + id +"\n"
@@ -288,14 +274,26 @@ public class Transformation {
 							for (Relationship rel : methodRels){
 								
 								if (rel.isType(RelTypes.CONTAINS_METHOD)){
+									// Delete old contains relationship.
 									rel.delete();
 								} else if (!rel.isType(RelTypes.CONTROL_FLOW) 
 										&& !rel.isType(RelTypes.LAST_UNIT)){
+									// Update relationships and caller fqn/rightvalue.
 									Node startNode = rel.getStartNode();
 									Node endNode = rel.getEndNode();
+									long endNodeID = endNode.getId();
 									
-									if (endNode.getId() == methodId){
-										
+									if (rel.isType(RelTypes.CALLS) && endNodeID == methodId){
+										String newFqn = StringUtil.addClassPathToMethod(abstractFqn, methodFqn);
+										if (startNode.hasLabel(Label.label("MethodCallWithReturnValue"))){
+											startNode.setProperty("fqn", newFqn);
+											startNode.setProperty("rightValue", StringUtil.buildRightValue(abstractFqn, startNode.getAllProperties()));
+										} else if (startNode.hasLabel(Label.label("MethodCall"))) {
+											startNode.setProperty("fqn", newFqn);
+										}
+									}
+									
+									if (endNodeID == methodId){
 										startNode.createRelationshipTo(abstractMethodNode, rel.getType());
 										rel.delete();
 									}
@@ -303,6 +301,46 @@ public class Transformation {
 							}
 							classNode.createRelationshipTo(abstractMethodNode, RelTypes.CONTAINS_METHOD);
 							nullNode.createRelationshipTo(nullMethodNode, RelTypes.CONTAINS_METHOD);
+							
+							/*
+							 * Create control flow for null method.
+							 */
+							
+							Node thisNode = dbService.createNode(Label.label("Assignment"));
+							nullMethodNode.createRelationshipTo(thisNode, RelTypes.CONTROL_FLOW);
+							nullMethodNode.createRelationshipTo(thisNode, RelTypes.CONTAINS_UNIT);
+							
+							thisNode.setProperty("operation", "thisdeclaration");
+							thisNode.setProperty("type", "Assignment");
+							thisNode.setProperty("var", "this");
+							thisNode.setProperty("vartype", nullFqn);
+							thisNode.setProperty("rightValue", "@this: " + nullFqn);
+							thisNode.setProperty("displayname", "this = @this: " + nullFqn);
+							
+							Node returnNode = dbService.createNode(Label.label("ReturnStmt"));
+							returnNode.setProperty("type", "ReturnStmt");
+							returnNode.setProperty("displayname", "return");
+							returnNode.createRelationshipTo(nullMethodNode, RelTypes.LAST_UNIT);
+							
+							//Create nodes for each parameter
+							int parameterscount = (int) nullMethodNode.getProperty("parameterscount");
+							Node lastNode = thisNode;
+							for (int i = 0; i < parameterscount; i++) {
+								Node parameterNode = dbService.createNode(Label.label("Assignment"));
+								lastNode.createRelationshipTo(parameterNode, RelTypes.CONTROL_FLOW);
+								String thisVartype = nullMethodNode.getProperty("p" + i).toString();
+								
+								parameterNode.setProperty("vartype", thisVartype);
+								parameterNode.setProperty("var", "arg" + i);
+								parameterNode.setProperty("rightValue", "@parameter" + i + ": " + thisVartype);
+								parameterNode.setProperty("displayname", "arg" + i + " = @parameter" + i + ": " + thisVartype);
+								parameterNode.setProperty("type", "Assignment");
+								parameterNode.setProperty("operation", "parameterdeclaration");
+								
+								lastNode = parameterNode;
+							}
+							lastNode.createRelationshipTo(returnNode, RelTypes.CONTROL_FLOW);
+							
 						} 
 						else if (methodProperties.get("visibility").toString().equals("private")) {
 							Iterable<Relationship> rels = methodNode.getRelationships();
@@ -317,13 +355,47 @@ public class Transformation {
 						methodNode.setProperty("fqn", StringUtil.addClassPathToMethod(realFqn, methodFqn));
 						realNode.createRelationshipTo(methodNode, RelTypes.CONTAINS_METHOD);
 						
-						
 					}
 					methods.close();
 					
-					tx.close();
+					
+					/*
+					 * Search the now abstract class node for fields and give them to the real node.
+					 */
+					Iterable<Relationship> classRels = classNode.getRelationships();
+					for (Relationship rel : classRels){
+						if (rel.isType(RelTypes.CONTAINS_FIELD)){
+							realNode.createRelationshipTo(rel.getEndNode(), RelTypes.CONTAINS_FIELD);
+							rel.delete();
+						}
+					}
+					
+					/*
+					 * Change vartype of candidate assignments to abstract class path.
+					 */
+					Node candidateNode = distinctCandidate.getValue();
+					String candidateName = candidateNode.getProperty("name").toString();
+					Iterable<Relationship> candidateRels = candidateNode.getRelationships(Direction.OUTGOING);
+					for (Relationship rel : candidateRels) {
+						
+						if (rel.isType(RelTypes.DATA_FLOW) && rel.getEndNode().hasLabel(Label.label("Assignment"))){
+							Node endNode = rel.getEndNode();
+							endNode.setProperty("vartype", abstractFqn);
+							String displayname = endNode.getProperty("displayname").toString();
+							endNode.setProperty("displayname", StringUtil.buildOutgoingDisplayname(abstractFqn, displayname, candidateName));
+							
+						}
+					}
+					
+					
+					
+					
+					
+					
+					tx.success();
 				}
 				System.out.println(classNode.toString());
+//				printNode(classNode);
 			}
 			classes.close();
 			

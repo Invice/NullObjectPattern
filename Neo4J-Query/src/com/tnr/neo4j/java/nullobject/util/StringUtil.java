@@ -2,7 +2,9 @@ package com.tnr.neo4j.java.nullobject.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class StringUtil {
@@ -68,6 +70,35 @@ public class StringUtil {
 		return packagePath;
 	}
 	
+	/**
+	 * Builds a new displayname for an assignment node using the new vartype, the old name and the assigned fields name.
+	 * @param vartype the new vartype to use
+	 * @param displayname the old displayname
+	 * @param fieldName the name of the field in the right value
+	 * @return
+	 */
+	public static String buildOutgoingDisplayname(final String vartype, final String displayname, final String fieldName){
+		
+		String[] tmp = displayname.split("\\:");
+		String newDisplayname = tmp[0]+ ": " + vartype + " " + fieldName + ">";
+		
+		return newDisplayname;
+	}
+	
+	/**
+	 * Builds a new right value string for MethodCallWithReturnValue nodes.
+	 * @param properties the properties of the node
+	 * @return
+	 */
+	public static String buildRightValue (String abstractFqn, Map<String, Object> properties){
+		
+		String rightValue = "virtualinvoke " + properties.get("caller") + ".<"
+				+ abstractFqn + ": " + properties.get("vartype") 
+				+ properties.get("displayname").toString().split("\\=")[1] + ">()";
+		
+		return rightValue;
+	}
+	
 	
 	public static void main(String[] args) {
 		
@@ -75,6 +106,17 @@ public class StringUtil {
 		String exampleMethodPath = exampleClassPath + ".reset()";
 		String exampleMethodPath2 = exampleClassPath + ".put(java.Lang.String)";
 		
+		String exampleVarType = "de.tnr.sdg.example.transformedCache.AbstractText";
+		String exampleDisplayName1 = "temp$0 = this.<de.tnr.sdg.example.transformedCache.MainClass: de.tnr.sdg.example.transformedCache.Cache cache>";
+		String exampleDisplayName2 = "temp$0 = this.<de.tnr.sdg.example.transformedCache.MainClass: de.tnr.sdg.example.transformedCache.AbstractCache cache>";
+
+		Map<String,Object> map = new HashMap<>();
+		map.put("caller", "temp$3");
+		map.put("fqn", "de.tnr.sdg.example.cache.AbstractText.getText()");
+		map.put("vartype", "java.lang.String");
+		map.put("displayname", "temp$7 = getText()");
+		
+//		System.out.println(buildRightValue(exampleVarType, map).equals("virtualinvoke temp$3.<de.tnr.sdg.example.transformedCache.AbstractText: java.lang.String getText()>()"));
 		
 //		System.out.println(addPrefixToClass("Real", exampleClassPath));
 //		System.out.println(addPrefixToClass("Abstract", exampleClassPath));
@@ -83,6 +125,10 @@ public class StringUtil {
 //		System.out.println(addClassPathToMethod(addPrefixToClass("Abstract", exampleClassPath), exampleMethodPath));
 //		System.out.println(addClassPathToMethod(addPrefixToClass("Null", exampleClassPath), exampleMethodPath2));
 		
-		System.out.println(extractPackagePath(exampleClassPath));
+//		System.out.println(extractPackagePath(exampleClassPath));
+		
+//		System.out.println(buildOutgoingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName1, "cache"));
+//		System.out.println(buildOutgoingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName1, "cache").equals(exampleDisplayName2));
+		
 	}
 }
