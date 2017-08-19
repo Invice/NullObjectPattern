@@ -38,7 +38,8 @@ public class Transformation {
 	Map<String, Node> distinctCandidateFields = new HashMap<>();
 	
 	private enum RelTypes implements RelationshipType {
-		EXTENDS, CONTAINS_TYPE, CONTAINS_METHOD, DATA_FLOW, CONTROL_FLOW, CALLS, AGGREGATED_CALLS, LAST_UNIT, CONTAINS_FIELD, CONTAINS_UNIT
+		EXTENDS, CONTAINS_TYPE, CONTAINS_METHOD, DATA_FLOW, CONTROL_FLOW, CALLS, 
+		AGGREGATED_CALLS, LAST_UNIT, CONTAINS_FIELD, CONTAINS_UNIT, CONTAINS_CONSTRUCTOR
 	}
 	
 	
@@ -130,6 +131,8 @@ public class Transformation {
 	
 	public void transform(){
 		
+		
+		
 		long startTime = System.currentTimeMillis();
 		
 		if (!hasMatched) {
@@ -145,9 +148,9 @@ public class Transformation {
 		System.out.println("Transformed nodes:");
 		for (Map.Entry<String, Node> distinctCandidate : distinctCandidateFields.entrySet()){
 			
-			String vartype = "";
+			String candidateVartype = "";
 			try (Transaction tx = dbService.beginTx()) {
-				vartype = (String) distinctCandidate.getValue().getProperty("vartype");
+				candidateVartype = (String) distinctCandidate.getValue().getProperty("vartype");
 				tx.success();
 			}
 			
@@ -157,14 +160,14 @@ public class Transformation {
 			String classQuery = 
 					"MATCH (class:Class) "
 						+ "USING INDEX class:Class(fqn)"
-						+ "WHERE class.fqn = \"" + vartype + "\" "
+						+ "WHERE class.fqn = \"" + candidateVartype + "\" "
 					+ "RETURN class";
 			Result classQueryResult = dbService.execute(classQuery);
 			
 			String packageQuery = 
 					"MATCH (package:Package) "
 							+ "USING INDEX package:Package(name)"
-							+ "WHERE package.name = \"" + StringUtil.extractPackagePath(vartype) + "\" "
+							+ "WHERE package.name = \"" + StringUtil.extractPackagePath(candidateVartype) + "\" "
 					+ "RETURN package";
 			Result packageQueryResult = dbService.execute(packageQuery);
 			
@@ -182,6 +185,11 @@ public class Transformation {
 				}
 				Node classNode = classes.next();
 				
+				// TODO: Check for availability of prefix+className
+				String realPrefix = "Real";
+				String abstractPrefix = "Abstract";
+				String nullPrefix = "Null";
+				
 				try (Transaction tx = dbService.beginTx()){
 					
 					Map<String,Object> properties = classNode.getAllProperties();
@@ -191,17 +199,17 @@ public class Transformation {
 					/*
 					 * Create new class paths for each node.
 					 */
-					final String realFqn = StringUtil.addPrefixToClass("Real", properties.get("fqn"));
-					final String nullFqn = StringUtil.addPrefixToClass("Null", properties.get("fqn"));
-					final String abstractFqn = StringUtil.addPrefixToClass("Abstract", properties.get("fqn"));
+					final String realFqn = StringUtil.addPrefixToClass(realPrefix, properties.get("fqn"));
+					final String nullFqn = StringUtil.addPrefixToClass(nullPrefix, properties.get("fqn"));
+					final String abstractFqn = StringUtil.addPrefixToClass(abstractPrefix, properties.get("fqn"));
 					
 					/*
 					 * Create realNode and relationships
 					 */
 					Node realNode = dbService.createNode(classLabel);
 					realNode.setProperty("fqn", realFqn);
-					realNode.setProperty("displayname", "Real"+properties.get("displayname"));
-					realNode.setProperty("name", "Real"+properties.get("name"));
+					realNode.setProperty("displayname", realPrefix+properties.get("displayname"));
+					realNode.setProperty("name", realPrefix+properties.get("name"));
 					realNode.setProperty("visibility", properties.get("visibility"));
 					realNode.setProperty("origin", properties.get("origin"));
 					realNode.setProperty("type", properties.get("type"));
@@ -215,8 +223,8 @@ public class Transformation {
 					 */
 					Node nullNode = dbService.createNode(classLabel);
 					nullNode.setProperty("fqn", nullFqn);
-					nullNode.setProperty("displayname", "Null"+properties.get("displayname"));
-					nullNode.setProperty("name", "Null"+properties.get("name"));
+					nullNode.setProperty("displayname", nullPrefix+properties.get("displayname"));
+					nullNode.setProperty("name", nullPrefix+properties.get("name"));
 					nullNode.setProperty("visibility", properties.get("visibility"));
 					nullNode.setProperty("origin", properties.get("origin"));
 					nullNode.setProperty("type", properties.get("type"));
@@ -229,13 +237,60 @@ public class Transformation {
 					 * Change node to abstractNode and update candidate vartype.
 					 */
 					classNode.setProperty("fqn", abstractFqn);
-					classNode.setProperty("displayname", "Abstract" + properties.get("displayname"));
-					classNode.setProperty("name", "Abstract" + properties.get("name"));
+					classNode.setProperty("displayname", abstractPrefix + properties.get("displayname"));
+					classNode.setProperty("name", abstractPrefix + properties.get("name"));
 					distinctCandidate.getValue().setProperty("vartype", abstractFqn);
+					
+					/*
+					 * Create new constructors for nullNode and realNode.
+					 */
+					// TODO: multiple constructors.
+					// TODO: constructors & fields
+					// TODO: Update abstract constructor
+					// TODO: Insert nullNode into mainConstructor to initiate with NullObject
+					Node nullConstructorNode = dbService.createNode(Label.label("Constructor"));
+					Node realConstructorNode = dbService.createNode(Label.label("Constructor"));
+					
+					Iterable<Relationship> classOutRels = classNode.getRelationships(Direction.OUTGOING);
+					for (Relationship rel : classOutRels){
+						if (rel.isType(RelTypes.CONTAINS_CONSTRUCTOR)){
+							Node constructorNode = rel.getEndNode();
+							
+							//Transfer old constructor calls to the new constructor for the real node.
+							Iterable<Relationship> constructorInRels = constructorNode.getRelationships(Direction.INCOMING);
+							for (Relationship constructorRel: constructorInRels){
+								if (constructorRel.isType(RelTypes.AGGREGATED_CALLS)){
+									constructorRel.getStartNode().createRelationshipTo(realConstructorNode, constructorRel.getType());
+									constructorRel.delete();
+								} else if (constructorRel.isType(RelTypes.CALLS)) {
+									Node startNode = constructorRel.getStartNode();
+									
+									startNode.setProperty("fqn", realFqn + ".<init>()");
+									
+									Node newAssignNode = startNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
+									newAssignNode.setProperty("vartype", realFqn);
+									String rightValue = "new " + realFqn;
+									newAssignNode.setProperty("rightValue", rightValue);
+									newAssignNode.setProperty("displayname", newAssignNode.getProperty("var") + " = " + rightValue);
+									
+									
+									startNode.createRelationshipTo(realConstructorNode, constructorRel.getType());
+									constructorRel.delete();
+								}
+							}
+							createConstructorFlow(constructorNode, nullConstructorNode, nullFqn);
+							nullNode.createRelationshipTo(nullConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
+							
+							createConstructorFlow(constructorNode, realConstructorNode, realFqn);
+							realNode.createRelationshipTo(realConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
+							break;
+						}
+					}
 					
 					/*
 					 * Create new methods and change alignments.
 					 */
+					// TODO: Update method flow.
 					String methodQuery = 
 							"MATCH (class:Class)-[:CONTAINS_METHOD]->(method:Method)\n"
 									+ "WHERE id(class) = " + id +"\n"
@@ -343,15 +398,24 @@ public class Transformation {
 							
 						} 
 						else if (methodProperties.get("visibility").toString().equals("private")) {
+							//Private methods keep their relationships as they are only known to their own class.
 							Iterable<Relationship> rels = methodNode.getRelationships();
 							
 							for (Relationship rel: rels){
 								if (rel.isType(RelTypes.CONTAINS_METHOD)){
 									rel.delete();
+								} else if (rel.isType(RelTypes.CALLS) && rel.getEndNodeId() == methodId){
+									Node startNode = rel.getStartNode();
+									String newFqn = StringUtil.addClassPathToMethod(realFqn, methodFqn);
+									if (startNode.hasLabel(Label.label("MethodCallWithReturnValue"))){
+										startNode.setProperty("fqn", newFqn);
+										startNode.setProperty("rightValue", StringUtil.buildRightValue(realFqn, startNode.getAllProperties()));
+									} else if (startNode.hasLabel(Label.label("MethodCall"))) {
+										startNode.setProperty("fqn", newFqn);
+									}
 								}
 							}
 						}
-						
 						methodNode.setProperty("fqn", StringUtil.addClassPathToMethod(realFqn, methodFqn));
 						realNode.createRelationshipTo(methodNode, RelTypes.CONTAINS_METHOD);
 						
@@ -371,26 +435,16 @@ public class Transformation {
 					}
 					
 					/*
-					 * Change vartype of candidate assignments to abstract class path.
+					 * Change vartype of Fields similar to candidate and their assignments to abstract class path.
 					 */
-					Node candidateNode = distinctCandidate.getValue();
-					String candidateName = candidateNode.getProperty("name").toString();
-					Iterable<Relationship> candidateRels = candidateNode.getRelationships(Direction.OUTGOING);
-					for (Relationship rel : candidateRels) {
-						
-						if (rel.isType(RelTypes.DATA_FLOW) && rel.getEndNode().hasLabel(Label.label("Assignment"))){
-							Node endNode = rel.getEndNode();
-							endNode.setProperty("vartype", abstractFqn);
-							String displayname = endNode.getProperty("displayname").toString();
-							endNode.setProperty("displayname", StringUtil.buildOutgoingDisplayname(abstractFqn, displayname, candidateName));
-							
-						}
+					updateFieldAssigments(distinctCandidate.getValue(), abstractFqn);
+					ResourceIterator<Node> similarFields = dbService.findNodes(Label.label("Field"), "vartype", candidateVartype);
+					while (similarFields.hasNext()){
+						Node similarField = similarFields.next();
+						similarField.setProperty("vartype", abstractFqn);
+						updateFieldAssigments(similarField, abstractFqn);
 					}
-					
-					
-					
-					
-					
+					similarFields.close();
 					
 					tx.success();
 				}
@@ -404,6 +458,106 @@ public class Transformation {
 		System.out.println("Time spent transforming: " + (System.currentTimeMillis() - startTime) + " ms");
 	}
 	
+	/**
+	 * Updates the vartype of the incoming and outgoing assignments of a field.
+	 * This method is to be used inside the transaction of the transform() method of this class.
+	 * @param fieldNode
+	 * @param vartype
+	 */
+	private void updateFieldAssigments(Node fieldNode, String vartype){
+		String candidateName = fieldNode.getProperty("name").toString();
+		Iterable<Relationship> candidateOutRels = fieldNode.getRelationships(Direction.OUTGOING);
+		for (Relationship rel : candidateOutRels) {
+			
+			if (rel.isType(RelTypes.DATA_FLOW) && rel.getEndNode().hasLabel(Label.label("Assignment"))){
+				Node endNode = rel.getEndNode();
+				endNode.setProperty("vartype", vartype);
+				String displayname = endNode.getProperty("displayname").toString();
+				endNode.setProperty("displayname", StringUtil.buildOutgoingDisplayname(vartype, displayname, candidateName));
+				
+			}
+		}
+		Iterable<Relationship> candidateInRels = fieldNode.getRelationships(Direction.INCOMING);
+		for (Relationship rel : candidateInRels) {
+			
+			if (rel.isType(RelTypes.DATA_FLOW) && rel.getStartNode().hasLabel(Label.label("Assignment"))){
+				Node startNode = rel.getStartNode();
+				startNode.setProperty("vartype", vartype);
+				String displayname = startNode.getProperty("displayname").toString();
+				startNode.setProperty("displayname", StringUtil.buildIncomingDisplayname(vartype, displayname, candidateName));
+				
+			}
+		}
+	}
+	
+	
+	
+	
+	
+	/**
+	 * Creates the controlFlow for a new constructor using the super constructor.
+	 * This method is to be used inside the transaction of the transform() method of this class.
+	 * @param superConstructor the super constructor to call (default should be Object)
+	 * @param newConstructor the new constructor
+	 * @return
+	 */
+	private void createConstructorFlow (Node superConstructor, Node newConstructor, String classFqn){
+		
+			Map<String, Object> superConstructorProperties = superConstructor.getAllProperties();
+			Node ctorNode = newConstructor;
+			Node thisNode = dbService.createNode(Label.label("Assignment"));
+			Node superNode = dbService.createNode(Label.label("ConstructorCall"));
+			Node returnNode = dbService.createNode(Label.label("ReturnStmt"));
+			
+			ctorNode.createRelationshipTo(superConstructor, RelTypes.AGGREGATED_CALLS);
+			ctorNode.createRelationshipTo(thisNode, RelTypes.CONTAINS_UNIT);
+			ctorNode.createRelationshipTo(thisNode, RelTypes.CONTROL_FLOW);
+			
+			thisNode.createRelationshipTo(superNode, RelTypes.DATA_FLOW);
+			thisNode.createRelationshipTo(superNode, RelTypes.CONTROL_FLOW);
+			
+			superNode.createRelationshipTo(superConstructor, RelTypes.CALLS);
+			superNode.createRelationshipTo(returnNode, RelTypes.CONTROL_FLOW);
+			
+			returnNode.createRelationshipTo(ctorNode, RelTypes.LAST_UNIT);
+			
+			for(String key : superConstructorProperties.keySet()){
+				if (!key.equals("fqn")){
+					ctorNode.setProperty(key, superConstructorProperties.get(key));
+				} else {
+					ctorNode.setProperty("fqn", classFqn + ".<init>()");
+				}
+			}
+			
+			thisNode.setProperty("vartype", classFqn);
+			thisNode.setProperty("var", "this");
+			String rightValue = "@this: " + classFqn;
+			thisNode.setProperty("displayname", "this = " + rightValue);
+			thisNode.setProperty("rightValue", rightValue);
+			thisNode.setProperty("lineNumber", 3);
+			thisNode.setProperty("type", "Assignment");
+			thisNode.setProperty("operation", "thisdeclaration");
+			
+			// TODO: Create option for constructor with arguments
+			String superArgs = "";
+			for (int i = 0; i < (int)superConstructorProperties.get("parameterscount"); i++){
+				superArgs = superArgs + ", arg" + i;
+			}
+			
+			
+			superNode.setProperty("args", superArgs);
+			superNode.setProperty("caller", "this");
+			superNode.setProperty("fqn", superConstructorProperties.get("fqn"));
+			superNode.setProperty("argumentscount", superConstructorProperties.get("parameterscount"));
+			superNode.setProperty("displayname", "<init>()");
+			superNode.setProperty("returntype", "void");
+			superNode.setProperty("name", "super");
+			superNode.setProperty("type", "ConstructorCall");
+			
+			returnNode.setProperty("displayname", "return");
+			returnNode.setProperty("type", "ReturnStmt");
+			
+	}
 	
 	
 	

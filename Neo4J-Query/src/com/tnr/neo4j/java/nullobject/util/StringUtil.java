@@ -71,7 +71,7 @@ public class StringUtil {
 	}
 	
 	/**
-	 * Builds a new displayname for an assignment node using the new vartype, the old name and the assigned fields name.
+	 * Builds a new displayname for an outgoing assignment node using the new vartype, the old name and the assigned fields name.
 	 * @param vartype the new vartype to use
 	 * @param displayname the old displayname
 	 * @param fieldName the name of the field in the right value
@@ -84,6 +84,27 @@ public class StringUtil {
 		
 		return newDisplayname;
 	}
+	
+	/**
+	 * Builds a new displayname for an incoming assignment node using the new vartype, the old name and the assigned fields name.
+	 * @param vartype the new vartype to use
+	 * @param displayname the old displayname
+	 * @param fieldName the name of the field in the right value
+	 * @return
+	 */
+	public static String buildIncomingDisplayname(final String vartype, final String displayname, final String fieldName){
+		
+		String[] tmp = displayname.split("\\:");
+		String[] tmp2 = tmp[1].split("\\>");
+		String newDisplayName = tmp[0] + ": " + vartype + " " + fieldName + ">" + tmp2[1]; 
+		
+		return newDisplayName;
+	}
+	
+	
+	
+	
+	
 	
 	/**
 	 * Builds a new right value string for MethodCallWithReturnValue nodes.
@@ -100,6 +121,15 @@ public class StringUtil {
 	}
 	
 	
+	public static String cutMethodName(final String methodFqn){
+		
+		String[] tmp = methodFqn.split("\\(");
+		String fqn = extractPackagePath(tmp[0]);
+		
+		return fqn;
+	}
+	
+	
 	public static void main(String[] args) {
 		
 		String exampleClassPath = "de.tnr.sdg.example.transformedCache.Cache";
@@ -108,7 +138,7 @@ public class StringUtil {
 		
 		String exampleVarType = "de.tnr.sdg.example.transformedCache.AbstractText";
 		String exampleDisplayName1 = "temp$0 = this.<de.tnr.sdg.example.transformedCache.MainClass: de.tnr.sdg.example.transformedCache.Cache cache>";
-		String exampleDisplayName2 = "temp$0 = this.<de.tnr.sdg.example.transformedCache.MainClass: de.tnr.sdg.example.transformedCache.AbstractCache cache>";
+		String exampleDisplayName2 = "this.<de.tnr.sdg.example.cache.MainClass: de.tnr.sdg.example.cache.Cache cache2> = temp$0";
 
 		Map<String,Object> map = new HashMap<>();
 		map.put("caller", "temp$3");
@@ -126,9 +156,14 @@ public class StringUtil {
 //		System.out.println(addClassPathToMethod(addPrefixToClass("Null", exampleClassPath), exampleMethodPath2));
 		
 //		System.out.println(extractPackagePath(exampleClassPath));
+//		System.out.println(cutMethodName(exampleMethodPath));
 		
 //		System.out.println(buildOutgoingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName1, "cache"));
 //		System.out.println(buildOutgoingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName1, "cache").equals(exampleDisplayName2));
+		
+		System.out.println(buildIncomingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName2, "cache"));
+		
+		
 		
 	}
 }
