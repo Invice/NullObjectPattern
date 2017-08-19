@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+@SuppressWarnings("unused")
 public class StringUtil {
 	
 	/**
@@ -30,7 +30,6 @@ public class StringUtil {
 
 		return transformedClassPath;
 	}
-	
 		
 	public static String addPrefixToClass(String prefix, final Object classPath){
 		return addPrefixToClass(prefix, (String) classPath);
@@ -80,9 +79,9 @@ public class StringUtil {
 	public static String buildOutgoingDisplayname(final String vartype, final String displayname, final String fieldName){
 		
 		String[] tmp = displayname.split("\\:");
-		String newDisplayname = tmp[0]+ ": " + vartype + " " + fieldName + ">";
+		String newDisplayName = tmp[0]+ ": " + vartype + " " + fieldName + ">";
 		
-		return newDisplayname;
+		return newDisplayName;
 	}
 	
 	/**
@@ -101,10 +100,37 @@ public class StringUtil {
 		return newDisplayName;
 	}
 	
+	/**
+	 * Builds a new displayname for an incoming assignment node using the new vartype, the old name and the assigned internal fields name.
+	 * @param vartype the new vartype to use
+	 * @param displayname the old displayname
+	 * @param fieldName the name of the field in the right value
+	 * @return
+	 */
+	public static String buildIncomingInternalDisplayname(final String vartype, final String displayname){
+		
+		String[] tmp = displayname.split("\\:");
+		String[] tmp2 = tmp[0].split("\\<");
+		String newDisplayName = tmp2[0] + "<" + vartype + ":" + tmp[1]; 
+		
+		return newDisplayName;
+	}
 	
-	
-	
-	
+	/**
+	 * Builds a new displayname for an outgoing assignment node using the new vartype, the old name and the assigned fields name.
+	 * @param vartype the new vartype to use
+	 * @param displayname the old displayname
+	 * @param fieldName the name of the field in the right value
+	 * @return
+	 */
+	public static String buildOutgoingInternalDisplayname(final String vartype, final String displayname){
+		
+		String[] tmp = displayname.split("\\:");
+		String[] tmp2 = tmp[0].split("\\<");
+		String newDisplayName = tmp2[0] + "<" + vartype + ":" + tmp[1];
+		
+		return newDisplayName;
+	}
 	
 	/**
 	 * Builds a new right value string for MethodCallWithReturnValue nodes.
@@ -121,24 +147,18 @@ public class StringUtil {
 	}
 	
 	
-	public static String cutMethodName(final String methodFqn){
-		
-		String[] tmp = methodFqn.split("\\(");
-		String fqn = extractPackagePath(tmp[0]);
-		
-		return fqn;
-	}
-	
-	
 	public static void main(String[] args) {
 		
 		String exampleClassPath = "de.tnr.sdg.example.transformedCache.Cache";
+		String exampleClassPath2 = "de.tnr.sdg.example.cache.Text";
 		String exampleMethodPath = exampleClassPath + ".reset()";
 		String exampleMethodPath2 = exampleClassPath + ".put(java.Lang.String)";
 		
 		String exampleVarType = "de.tnr.sdg.example.transformedCache.AbstractText";
 		String exampleDisplayName1 = "temp$0 = this.<de.tnr.sdg.example.transformedCache.MainClass: de.tnr.sdg.example.transformedCache.Cache cache>";
 		String exampleDisplayName2 = "this.<de.tnr.sdg.example.cache.MainClass: de.tnr.sdg.example.cache.Cache cache2> = temp$0";
+		String exampleDisplayName3 = "this.<de.tnr.sdg.example.cache.Text: java.lang.String text> = text";
+		String exampleDisplayName4 = "temp$0 = this.<de.tnr.sdg.example.cache.Text: java.lang.String text>";
 
 		Map<String,Object> map = new HashMap<>();
 		map.put("caller", "temp$3");
@@ -161,9 +181,10 @@ public class StringUtil {
 //		System.out.println(buildOutgoingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName1, "cache"));
 //		System.out.println(buildOutgoingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName1, "cache").equals(exampleDisplayName2));
 		
-		System.out.println(buildIncomingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName2, "cache"));
+//		System.out.println(buildIncomingDisplayname(addPrefixToClass("Abstract", exampleClassPath), exampleDisplayName2, "cache"));
 		
-		
+//		System.out.println(buildIncomingInternalDisplayname(addPrefixToClass("Real", exampleClassPath2), exampleDisplayName3));
+//		System.out.println(buildOutgoingInternalDisplayname(addPrefixToClass("Real", exampleClassPath2), exampleDisplayName4));
 		
 	}
 }
