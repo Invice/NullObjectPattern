@@ -43,20 +43,8 @@ MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(co
 	USING INDEX condition:Condition(operation)
 	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
 MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  
-	USING INDEX ifStmt:NopStmt(nopkind)
 	WHERE ifStmt.nopkind = "IF_COND" OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)
-MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..10]->(return:ReturnStmt))
+MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..]->(return:ReturnStmt))
 	WHERE (return)-[:LAST_UNIT]->(method)
 RETURN DISTINCT candidateField, method, condition, condVariable, ifStmt, return
 
-MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
-	USING INDEX candidateField:Field(isfinal)
-MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:"!="})
-	USING INDEX condition:Condition(operation)
-	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
-MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt {nopkind:"IF_COND"})  
-	USING INDEX ifStmt:NopStmt(nopkind)
-MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*]->(return:ReturnStmt))
-	WITH p 
-	WHERE ANY (node IN nodes(p) where (node:ReturnStmt)-[:LAST_UNIT]->(method))
-RETURN DISTINCT p

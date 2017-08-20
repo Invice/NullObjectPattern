@@ -16,5 +16,5 @@ public class Constants {
 					+ "OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)\n"
 			+ "MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..]->(return:ReturnStmt))\n\u0009"
 				+ "WHERE (return)-[:LAST_UNIT]->(method)\n"
-			+ "RETURN DISTINCT candidateField";//, method, condition, condVariable, ifStmt, return";
+			+ "RETURN DISTINCT candidateField, condVariable";//, method, condition, condVariable, ifStmt, return";
 }

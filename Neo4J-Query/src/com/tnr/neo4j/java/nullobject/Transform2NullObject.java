@@ -1,7 +1,9 @@
 package com.tnr.neo4j.java.nullobject;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.neo4j.graphdb.Direction;
@@ -20,6 +22,7 @@ import org.neo4j.graphdb.schema.Schema;
 import com.tnr.neo4j.java.nullobject.util.Constants;
 import com.tnr.neo4j.java.nullobject.util.StringUtil;
 
+
 /**
  * Usage:
  * 
@@ -33,6 +36,7 @@ import com.tnr.neo4j.java.nullobject.util.StringUtil;
  *
  */
 public class Transform2NullObject {
+	
 	
 	private final GraphDatabaseService dbService = new GraphDatabaseFactory().newEmbeddedDatabase(new File(Constants.GraphDatabaseLocation + Constants.GraphDatabaseName));
 	
@@ -53,7 +57,10 @@ public class Transform2NullObject {
 	/**
 	 * Used by transforming and matching methods.
 	 */
-	Map<String, Node> distinctCandidateFields = new HashMap<>();
+	private Map<String, Node> distinctCandidateFields = new HashMap<>();
+	private Map<String, Node> distinctConditionAssignments = new HashMap<>();
+	
+	
 	
 	private enum RelTypes implements RelationshipType {
 		EXTENDS, CONTAINS_TYPE, CONTAINS_METHOD, DATA_FLOW, CONTROL_FLOW, CALLS, 
@@ -130,31 +137,57 @@ public class Transform2NullObject {
 	 */
 	public void match() {
 		
+		System.out.println("Started matching ...");
 		long startTime = System.currentTimeMillis();
 		/*
 		 * Find candidates using the Cypher Match Query
 		 */
 		Result queryResult =  dbService.execute(Constants.MATCH_QUERY);
-		ResourceIterator<Node> candidateFields = queryResult.columnAs("candidateField");
-		
 		/*
-		 * Collect distinct Candidate Fields
+		 * Collect distinct candidates and theirs assignments within if conditions
 		 */
 		distinctCandidateFields = new HashMap<>();
-		while (candidateFields.hasNext()){
-			Node node = candidateFields.next();
-			if (!distinctCandidateFields.containsKey(node.getId())){
-				distinctCandidateFields.put(String.valueOf(node.getId()), node);
+		distinctConditionAssignments = new HashMap<>();
+		
+		while(queryResult.hasNext()){
+			Map<String,Object> result = queryResult.next();
+			
+			Node fieldNode = (Node) result.get("candidateField");
+			Node assignmentNode = (Node) result.get("condVariable");
+			 
+			try (Transaction tx = dbService.beginTx()){
+				String fieldId = String.valueOf(fieldNode.getId());
+				String assignmentId = String.valueOf(assignmentNode.getId());
+				
+				if (!distinctCandidateFields.containsKey(fieldId)){
+					distinctCandidateFields.put(fieldId, fieldNode);
+				}
+				if (!distinctConditionAssignments.containsKey(assignmentId)){
+					distinctConditionAssignments.put(assignmentId, assignmentNode);
+				}
+				tx.success();
 			}
+//			System.out.println("next");
 		}
-		candidateFields.close();
+		queryResult.close();	
+			
+//		for (String key : distinctCandidateFields.keySet()){
+//			System.out.print(key + ", ");
+//		}
+//		System.out.println("");
+//		for (String key : distinctConditionAssignments.keySet()){
+//			System.out.print(key + ", ");
+//		}
+//		System.out.println("");
+			
 		hasMatched = true;
 		
-		System.out.println("Time spent matching: " + (System.currentTimeMillis() - startTime) + "ms");
+		System.out.println("Finished matching. Found [" + distinctCandidateFields.size() + "] candidate fields with [" + distinctConditionAssignments.size() + "] assignments.");
+		System.out.println("Time spent matching: " + (System.currentTimeMillis() - startTime) + "ms\n");
 	}
 	
 	/**
-	 * Transforms the graphDb using candidates obtaines with match().
+	 * Transforms the graphDb using candidates obtained with match().
 	 */
 	public void transform(){
 		
@@ -163,21 +196,54 @@ public class Transform2NullObject {
 		if (!hasMatched) {
 			System.out.println("Call match() before calling transform().");
 			return;
+		} else {
+			System.out.println("Started transforming ...");
 		}
 		
 		/*
-		 * Create new class nodes for each candidate
+		 * Transform each candidate individually.
 		 */
-
-		System.out.println("Transformed nodes:");
 		for (Map.Entry<String, Node> distinctCandidate : distinctCandidateFields.entrySet()){
 			
+			/*
+			 * Get vartype of the candidate.
+			 */
 			String candidateVartype = "";
 			try (Transaction tx = dbService.beginTx()) {
 				candidateVartype = (String) distinctCandidate.getValue().getProperty("vartype");
 				tx.success();
-			}
 			
+				if (candidateVartype.equals("")){
+					System.err.println("Not a valid candidate.");
+					printNode(distinctCandidate.getValue());
+					return;
+				} else {
+					System.out.println("Started transforming " + candidateVartype);
+				}
+				
+				
+				/*
+				 * Get assignments belonging to this vartype.
+				 */
+				Map<String, Node> candidateConditionAssignments = new HashMap<>();
+				for (String key : distinctConditionAssignments.keySet()){
+					Node node = distinctConditionAssignments.get(key);
+					if (node.getProperty("vartype").toString().equals(candidateVartype)){
+						candidateConditionAssignments.put(key,node);
+					}
+				}
+				System.out.println("Found [" + candidateConditionAssignments.size() + "] nodes belonging to this candidate.");
+				
+				/*
+				 * Remove the assignments from if statements.
+				 */
+				for (String key : candidateConditionAssignments.keySet()){
+					removeAssignmentFromConditions(candidateConditionAssignments.get(key));
+					distinctConditionAssignments.remove(key);
+				}
+				
+				tx.success();
+			}
 			/*
 			 * Find class node and package node of a candidate field
 			 */
@@ -269,7 +335,7 @@ public class Transform2NullObject {
 					/*
 					 * Create new constructors for nullNode and realNode.
 					 */
-					// TODO: multiple constructors.
+					// TODO: multiple (overloaded) constructors.
 					// TODO: Insert nullNode into mainConstructor to initiate with NullObject
 					Node nullConstructorNode = dbService.createNode(Label.label("Constructor"));
 					Node realConstructorNode = dbService.createNode(Label.label("Constructor"));
@@ -463,13 +529,14 @@ public class Transform2NullObject {
 					
 					tx.success();
 				}
-				System.out.println(classNode.toString());
+				System.out.println("Transformed node: " + classNode.toString());
 //				printNode(classNode);
 			}
 			classes.close();
 			
 		}		
 			
+		System.out.println("Finished transforming.");
 		System.out.println("Time spent transforming: " + (System.currentTimeMillis() - startTime) + "ms");
 	}
 	
@@ -701,6 +768,141 @@ public class Transform2NullObject {
 		}
 		
 		newConstructor.createRelationshipTo(oldConstructor, RelTypes.AGGREGATED_CALLS);
+	}
+	
+	
+	/**
+	 * Removes the assignments and condition control flows of candidate assignments inside if statemens.
+	 * @param assignNode
+	 */
+	private void removeAssignmentFromConditions(Node assignNode){
+		
+		/*
+		 * ifCondNopStmt should be of type (NopStmt {nopkind:IF_COND}) or belong to a if condition
+		 * as the match query only collects those assign nodes in distinctConditionAssignments.
+		 * Same for conditionNode.
+		 */
+		Node incomingNopStmt = assignNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
+		Node conditionNode = assignNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
+		
+		Node endCondNopStmt = null;
+		long endCondId = 0;
+		if (incomingNopStmt.hasProperty("nopkind")){
+			endCondNopStmt = incomingNopStmt.getSingleRelationship(RelTypes.LAST_UNIT, Direction.INCOMING).getStartNode();
+			endCondId = endCondNopStmt.getId();
+		}
+		
+		Iterable<Relationship> conditionControlFlow = conditionNode.getRelationships(RelTypes.CONTROL_FLOW, Direction.OUTGOING);
+		List<Node> followingNodes = new ArrayList<>();
+		for(Relationship rel : conditionControlFlow){
+			followingNodes.add(rel.getEndNode());
+		}
+
+		/*
+		 * Test if the condition is the first and/or last condition of the if condition(s).
+		 * If this is not the only condition, it can be removed from the conditions but the others must stay.
+		 */
+		
+		boolean firstCondition = incomingNopStmt.hasProperty("nopkind")
+				&& incomingNopStmt.getProperty("nopkind").toString().equals("IF_COND");
+		
+		
+		boolean lastCondition = followingNodes.size()==2 
+				&& followingNodes.get(0).hasProperty("nopkind") && followingNodes.get(1).hasProperty("nopkind");
+		
+		
+		if (firstCondition && lastCondition) {
+			// -> only condition
+			Node callingNode = incomingNopStmt.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
+			Node thenNode = null;
+			Node elseNode = null;
+			
+			for (Node nopNode: followingNodes) {
+				String nopkind = nopNode.getProperty("nopkind").toString();
+				if (nopkind.equals("IF_THEN")){
+					thenNode = nopNode;
+				} else if (nopkind.equals("IF_ELSE")) {
+					elseNode = nopNode;
+				} else {
+					System.err.println("Wrong node inside control flow of an if statement.");
+					return;
+				}
+			}
+			
+			/*
+			 * Delete the else branch.
+			 */
+			boolean hasNextElseNode = true;
+			while (hasNextElseNode) {
+				Node nextNode = elseNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
+				removeNodeFromDb(elseNode);
+				elseNode = nextNode;
+				hasNextElseNode = !(nextNode.getId() == endCondId);
+			}
+			
+			/*
+			 * Remove the endNode.
+			 */
+			Node lastThenNode = endCondNopStmt.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
+			Node calledNode = endCondNopStmt.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
+			lastThenNode.createRelationshipTo(calledNode, RelTypes.CONTROL_FLOW);
+			removeNodeFromDb(endCondNopStmt);
+			
+			/*
+			 * Remove the thenNode, assignmentNode and condNode.
+			 */
+			Node firstThenNode = thenNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
+			callingNode.createRelationshipTo(firstThenNode, RelTypes.CONTROL_FLOW);
+			
+			removeNodeFromDb(thenNode);
+			removeNodeFromDb(incomingNopStmt);
+			removeNodeFromDb(conditionNode);
+			removeNodeFromDb(assignNode);
+			
+		} else if (firstCondition && !lastCondition) {
+			Node unnamedNode = null;
+			Node nextConditionNode = null;
+			
+			for (Node nopNode : followingNodes){
+				if (!nopNode.hasProperty("nopkind")){
+					unnamedNode = nopNode;
+					nextConditionNode = nopNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
+				}
+			}
+			incomingNopStmt.createRelationshipTo(nextConditionNode, RelTypes.CONTROL_FLOW);
+			removeNodeFromDb(assignNode);
+			removeNodeFromDb(conditionNode);
+			removeNodeFromDb(unnamedNode);
+			
+		} else {
+			
+			Node unnamedNode = assignNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
+			Node previousCondition = unnamedNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
+			Node followingNopNode = null;
+			
+			for (Node nopNode : followingNodes) {
+				if (!nopNode.hasProperty("nopkind") || nopNode.getProperty("nopkind").toString().equals("IF_THEN")){
+					followingNopNode = nopNode;
+				}
+			}
+			previousCondition.createRelationshipTo(followingNopNode, RelTypes.CONTROL_FLOW);
+			
+			removeNodeFromDb(unnamedNode);
+			removeNodeFromDb(conditionNode);
+			removeNodeFromDb(assignNode);
+		}	
+	}
+	
+	/**
+	 * Removes a node and its relationships from the database. 
+	 * To be used inside a transaction.
+	 * @param node
+	 */
+	private void removeNodeFromDb (Node node) {
+		for (Relationship rel : node.getRelationships()){
+			rel.delete();
+		}
+		node.delete();
 	}
 	
 	
