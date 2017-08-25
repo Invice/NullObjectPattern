@@ -209,16 +209,23 @@ public class Transform2NullObject {
 			 * Get vartype of the candidate.
 			 */
 			String candidateVartype = "";
+			Node mainClass = null;
 			try (Transaction tx = dbService.beginTx()) {
 				candidateVartype = (String) distinctCandidate.getValue().getProperty("vartype");
-				tx.success();
-			
+				mainClass = distinctCandidate.getValue()
+						.getSingleRelationship(RelTypes.CONTAINS_FIELD, Direction.INCOMING).getStartNode();
+				
 				if (candidateVartype.equals("")){
 					System.err.println("Not a valid candidate.");
 					printNode(distinctCandidate.getValue());
 					return;
+				} else if (mainClass == null) {
+					System.err.println("No valid main class found.");
+					printNode(distinctCandidate.getValue());
+					return;
 				} else {
-					System.out.println("Started transforming " + candidateVartype);
+					System.out.println("Started transforming " + candidateVartype + " contained in " 
+							+ mainClass.getProperty("fqn") + ".");
 				}
 				
 				
@@ -336,7 +343,7 @@ public class Transform2NullObject {
 					 * Create new constructors for nullNode and realNode.
 					 */
 					// TODO: multiple (overloaded) constructors.
-					// TODO: Insert nullNode into mainConstructor to initiate with NullObject
+				
 					Node nullConstructorNode = dbService.createNode(Label.label("Constructor"));
 					Node realConstructorNode = dbService.createNode(Label.label("Constructor"));
 					
@@ -527,10 +534,12 @@ public class Transform2NullObject {
 					}
 					similarFields.close();
 					
+					findAndInitializeUninitializedFields(mainClass, abstractFqn, nullNode);
 					tx.success();
 				}
 				System.out.println("Transformed node: " + classNode.toString());
 //				printNode(classNode);
+				
 			}
 			classes.close();
 			
@@ -538,6 +547,99 @@ public class Transform2NullObject {
 			
 		System.out.println("Finished transforming.");
 		System.out.println("Time spent transforming: " + (System.currentTimeMillis() - startTime) + "ms");
+		
+		
+		// TODO: Insert nullNode into mainConstructor to initiate with NullObject
+		
+		
+	}
+	
+	/**
+	 * Finds all fields of a vartype that are not initialized within the main class constructors and
+	 * initializes them with the null object.
+	 * @param mainClass
+	 * @param vartype
+	 * @param nullNode
+	 */
+	private void findAndInitializeUninitializedFields(Node mainClass, String vartype, Node nullNode){
+		
+		String uninitializedFieldQuery = ""
+				+ "MATCH (n:Field {vartype:'" + vartype + "'})<-[:CONTAINS_FIELD]-(main:Class)"
+				+ "WHERE id(main) = " + mainClass.getId() 
+					+ " AND NOT (n:Field)<-[:AGGREGATED_FIELD_WRITE]-(:Constructor)<-[:CONTAINS_CONSTRUCTOR]-(main)"
+				+ "RETURN n";
+				
+		Result result = dbService.execute(uninitializedFieldQuery);
+		ResourceIterator<Node> fields = result.columnAs("n");
+		List<Node> constructors = new ArrayList<Node>();
+		for (Relationship rel : mainClass.getRelationships(RelTypes.CONTAINS_CONSTRUCTOR, Direction.OUTGOING)){
+			constructors.add(rel.getEndNode());
+		}
+		
+		String mainFqn = (String) mainClass.getProperty("fqn");
+		int fieldNum = 0;
+		while (fields.hasNext()){
+			Node field = fields.next();
+			for (Node constructor : constructors){
+				injectFieldInitToConstructor(constructor, field, nullNode, fieldNum++, mainFqn);
+			}
+		}
+		fields.close();
+	}
+	
+	private void injectFieldInitToConstructor(Node constructor, Node field, Node nullNode, int num, String mainFqn) {
+		
+		Node nullConstructor = nullNode.getSingleRelationship(RelTypes.CONTAINS_CONSTRUCTOR, Direction.OUTGOING).getEndNode();
+		Node constructorThisNode = constructor.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
+		Node constructorSuperNode = constructorThisNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
+		Relationship superRel = constructorSuperNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING);
+		Node nextNode = superRel.getEndNode();
+		superRel.delete();
+		
+		
+		Node tempAssign = dbService.createNode(Label.label("Assignment"));
+		Node init = dbService.createNode(Label.label("ConstructorCall"));
+		Node fieldAssign = dbService.createNode(Label.label("Assignment"));
+		
+		constructor.createRelationshipTo(field, RelTypes.AGGREGATED_FIELD_WRITE);
+		constructorThisNode.createRelationshipTo(fieldAssign, RelTypes.DATA_FLOW);
+		constructorSuperNode.createRelationshipTo(tempAssign, RelTypes.CONTROL_FLOW);
+		tempAssign.createRelationshipTo(init, RelTypes.CONTROL_FLOW);
+		tempAssign.createRelationshipTo(init, RelTypes.DATA_FLOW);
+		tempAssign.createRelationshipTo(fieldAssign, RelTypes.DATA_FLOW);
+		init.createRelationshipTo(nullConstructor, RelTypes.CALLS);
+		init.createRelationshipTo(fieldAssign, RelTypes.CONTROL_FLOW);
+		fieldAssign.createRelationshipTo(field, RelTypes.DATA_FLOW);
+		fieldAssign.createRelationshipTo(nextNode, RelTypes.CONTROL_FLOW);
+		
+		String nullFqn = (String) nullNode.getProperty("fqn");
+		String var = "newTemp$" + num;
+		String rightValue = "new " + nullFqn;
+		
+		tempAssign.setProperty("vartype", nullFqn);
+		tempAssign.setProperty("var", var);
+		tempAssign.setProperty("rightValue", rightValue);
+		tempAssign.setProperty("displayname" , var + " = " + rightValue);
+		tempAssign.setProperty("type", "Assignment");
+		tempAssign.setProperty("operation", "new");
+		
+		init.setProperty("args", new String[0]);
+		init.setProperty("caller", var);
+		init.setProperty("fqn", nullFqn + ".<init>()");
+		init.setProperty("argumentscount", 0);
+		init.setProperty("displayname", "<init>()");
+		init.setProperty("returntype", "void");
+		init.setProperty("name", "<init>");
+		init.setProperty("type", "ConstructorCall");
+		
+		String fieldFqn = (String) field.getProperty("vartype");
+		String fieldName = (String) field.getProperty("name");
+		fieldAssign.setProperty("vartype", fieldFqn);
+		fieldAssign.setProperty("var", fieldName);
+		fieldAssign.setProperty("rightValue", var);
+		fieldAssign.setProperty("displayname" , "this.<" + mainFqn + ": " + fieldFqn + " " + fieldName + "> = " + var);
+		fieldAssign.setProperty("type", "Assignment");
+		fieldAssign.setProperty("operation", "value");
 	}
 	
 	/**
@@ -655,9 +757,11 @@ public class Transform2NullObject {
 			thisNode.setProperty("operation", "thisdeclaration");
 			
 			// TODO: Create option for constructor with arguments
-			String superArgs = "";
-			for (int i = 0; i < (int)superConstructorProperties.get("parameterscount"); i++){
-				superArgs = superArgs + ", arg" + i;
+			
+			int parameterscount = (int)superConstructorProperties.get("parameterscount");
+			String[] superArgs = new String[parameterscount];
+			for (int i = 0; i < parameterscount; i++){
+				superArgs[i] = "arg" + i;
 			}
 			
 			

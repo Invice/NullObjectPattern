@@ -2,7 +2,7 @@ package com.tnr.neo4j.java.nullobject.util;
 
 public class Constants {
 	public static final String GraphDatabaseLocation = "C:\\Users\\Tim-Niklas Reck\\Desktop\\Bachelorarbeit\\sootexample\\databases\\";
-	public static final String GraphDatabaseName = "de.tnr.sdg.example.cache.MainClass - Kopie";
+	public static final String GraphDatabaseName = "de.tnr.sdg.example.cache.MainClass";
 	
 	public static final String MATCH_QUERY = ""
 			+ "MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)\n\u0009"
