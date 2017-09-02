@@ -1,3 +1,33 @@
+CREATE INDEX ON :Field(isfinal)
+CREATE INDEX ON :Condition(operation)
+CREATE INDEX ON :Class(fqn)
+
+	
+MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
+	USING INDEX candidateField:Field(isfinal)
+MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:"!="})
+	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
+MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  
+	WHERE ifStmt.nopkind = "IF_COND" OR ifStmt.nopkind = "IF_COND_X" OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)
+MATCH (candidate:Class)
+	WHERE candidate.fqn = candidateField.vartype
+RETURN DISTINCT candidateField, condVariable, candidate
+
+// MQ mit shortestPath
+MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
+	USING INDEX candidateField:Field(isfinal)
+MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:"!="})
+	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
+MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  
+	WHERE ifStmt.nopkind = "IF_COND" OR ifStmt.nopkind = "IF_COND_X" OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)
+MATCH shortestPath((ifStmt)-[:CONTROL_FLOW*0..]->(return:ReturnStmt))
+	WHERE (return)-[:LAST_UNIT]->(method)
+MATCH (candidate:Class)
+	WHERE candidate.fqn = candidateField.vartype
+RETURN DISTINCT candidateField, condVariable, candidate
+
+#########################################################################################################
+
 Match-Query mit Nop-Kind-Werten:
 
 PROFILE
@@ -30,21 +60,3 @@ MATCH k=((condEval)-[:CONTROL_FLOW]->(:NopStmt {nopkind:"IF_ELSE"})-[:CONTROL_FL
 MATCH (package:Package) --> (candidate:Class)
 	WHERE candidateField.vartype = candidate.fqn
 RETURN DISTINCT candidate, candidateField, package
-
-
-58 condition
-	
-	
-NEUE TESTS:	
-	
-MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
-	USING INDEX candidateField:Field(isfinal)
-MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:"!="})
-	USING INDEX condition:Condition(operation)
-	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
-MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  
-	WHERE ifStmt.nopkind = "IF_COND" OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)
-MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..]->(return:ReturnStmt))
-	WHERE (return)-[:LAST_UNIT]->(method)
-RETURN DISTINCT candidateField, method, condition, condVariable, ifStmt, return
-

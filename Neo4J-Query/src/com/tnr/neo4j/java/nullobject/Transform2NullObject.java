@@ -59,7 +59,7 @@ public class Transform2NullObject {
 	 */
 	private Map<String, Node> distinctCandidateFields = new HashMap<>();
 	private Map<String, Node> distinctConditionAssignments = new HashMap<>();
-	
+	private Map<String, Node> distinctCandidates = new HashMap<>();
 	
 	
 	private enum RelTypes implements RelationshipType {
@@ -154,10 +154,12 @@ public class Transform2NullObject {
 			
 			Node fieldNode = (Node) result.get("candidateField");
 			Node assignmentNode = (Node) result.get("condVariable");
-			 
+			Node candidateNode = (Node) result.get("candidate");
+			
 			try (Transaction tx = dbService.beginTx()){
 				String fieldId = String.valueOf(fieldNode.getId());
 				String assignmentId = String.valueOf(assignmentNode.getId());
+				String candidateId = String.valueOf(candidateNode.getId());
 				
 				if (!distinctCandidateFields.containsKey(fieldId)){
 					distinctCandidateFields.put(fieldId, fieldNode);
@@ -165,20 +167,14 @@ public class Transform2NullObject {
 				if (!distinctConditionAssignments.containsKey(assignmentId)){
 					distinctConditionAssignments.put(assignmentId, assignmentNode);
 				}
+				if (!distinctCandidates.containsKey(candidateId)){
+					distinctCandidates.put(candidateId, candidateNode);
+				}
+				
 				tx.success();
 			}
-//			System.out.println("next");
 		}
 		queryResult.close();	
-			
-//		for (String key : distinctCandidateFields.keySet()){
-//			System.out.print(key + ", ");
-//		}
-//		System.out.println("");
-//		for (String key : distinctConditionAssignments.keySet()){
-//			System.out.print(key + ", ");
-//		}
-//		System.out.println("");
 			
 		hasMatched = true;
 		
@@ -203,6 +199,7 @@ public class Transform2NullObject {
 		/*
 		 * Transform each candidate individually.
 		 */
+		// TODO: Rework candidate and field structure.
 		for (Map.Entry<String, Node> distinctCandidate : distinctCandidateFields.entrySet()){
 			
 			/*
@@ -283,6 +280,7 @@ public class Transform2NullObject {
 				Node classNode = classes.next();
 				
 				// TODO: Check for availability of prefix+className
+				// TODO: Exclude same classNode from being transformed multiple times.
 				String realPrefix = "Real";
 				String abstractPrefix = "Abstract";
 				String nullPrefix = "Null";
@@ -547,10 +545,6 @@ public class Transform2NullObject {
 			
 		System.out.println("Finished transforming.");
 		System.out.println("Time spent transforming: " + (System.currentTimeMillis() - startTime) + "ms");
-		
-		
-		// TODO: Insert nullNode into mainConstructor to initiate with NullObject
-		
 		
 	}
 	
@@ -880,7 +874,7 @@ public class Transform2NullObject {
 	 * @param assignNode
 	 */
 	private void removeAssignmentFromConditions(Node assignNode){
-		
+		// TODO : Update for IF_COND_X
 		/*
 		 * ifCondNopStmt should be of type (NopStmt {nopkind:IF_COND}) or belong to a if condition
 		 * as the match query only collects those assign nodes in distinctConditionAssignments.

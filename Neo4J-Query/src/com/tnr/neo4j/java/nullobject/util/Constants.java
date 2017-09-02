@@ -14,7 +14,10 @@ public class Constants {
 			+ "MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  \n\u0009"
 				+ "WHERE ifStmt.nopkind = \"IF_COND\" "
 					+ "OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)\n"
-			+ "MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..]->(return:ReturnStmt))\n\u0009"
+			+ "MATCH p=shortestPath((ifStmt)-[:CONTROL_FLOW*0..]->(return:ReturnStmt)) \n \u0009"
 				+ "WHERE (return)-[:LAST_UNIT]->(method)\n"
-			+ "RETURN DISTINCT candidateField, condVariable";//, method, condition, condVariable, ifStmt, return";
+			+ "MATCH (candidate:Class) \n\u0009"
+				+ "WHERE candidate.fqn = candidateField.vartype\n"
+				+ "USING INDEX candidate:Class(fqn)"
+			+ "RETURN DISTINCT candidateField, condVariable, candidate";
 }
