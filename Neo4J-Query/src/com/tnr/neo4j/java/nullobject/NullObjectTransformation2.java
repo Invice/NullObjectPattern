@@ -35,7 +35,7 @@ import com.tnr.neo4j.java.nullobject.util.StringUtil;
  * @author Tim-Niklas Reck
  *
  */
-public class Transform2NullObject {
+public class NullObjectTransformation2 {
 	
 	
 	private final GraphDatabaseService dbService = new GraphDatabaseFactory().newEmbeddedDatabase(new File(Constants.GraphDatabaseLocation + Constants.GraphDatabaseName));
@@ -185,10 +185,13 @@ public class Transform2NullObject {
 	/**
 	 * Transforms the graphDb using candidates obtained with match().
 	 */
-	public void transform(){
+	public void transform2nullObject(){
 		
 		long startTime = System.currentTimeMillis();
 		
+		/*
+		 * This method must be called after matching.
+		 */
 		if (!hasMatched) {
 			System.out.println("Call match() before calling transform().");
 			return;
@@ -205,14 +208,14 @@ public class Transform2NullObject {
 			/*
 			 * Get vartype of the candidate.
 			 */
-			String candidateVartype = "";
+			String candidateFieldVartype = "";
 			Node mainClass = null;
 			try (Transaction tx = dbService.beginTx()) {
-				candidateVartype = (String) distinctCandidate.getValue().getProperty("vartype");
+				candidateFieldVartype = (String) distinctCandidate.getValue().getProperty("vartype");
 				mainClass = distinctCandidate.getValue()
 						.getSingleRelationship(RelTypes.CONTAINS_FIELD, Direction.INCOMING).getStartNode();
 				
-				if (candidateVartype.equals("")){
+				if (candidateFieldVartype.equals("")){
 					System.err.println("Not a valid candidate.");
 					printNode(distinctCandidate.getValue());
 					return;
@@ -221,7 +224,7 @@ public class Transform2NullObject {
 					printNode(distinctCandidate.getValue());
 					return;
 				} else {
-					System.out.println("Started transforming " + candidateVartype + " contained in " 
+					System.out.println("Started transforming " + candidateFieldVartype + " contained in " 
 							+ mainClass.getProperty("fqn") + ".");
 				}
 				
@@ -232,7 +235,7 @@ public class Transform2NullObject {
 				Map<String, Node> candidateConditionAssignments = new HashMap<>();
 				for (String key : distinctConditionAssignments.keySet()){
 					Node node = distinctConditionAssignments.get(key);
-					if (node.getProperty("vartype").toString().equals(candidateVartype)){
+					if (node.getProperty("vartype").toString().equals(candidateFieldVartype)){
 						candidateConditionAssignments.put(key,node);
 					}
 				}
@@ -254,14 +257,14 @@ public class Transform2NullObject {
 			String classQuery = 
 					"MATCH (class:Class) "
 						+ "USING INDEX class:Class(fqn)"
-						+ "WHERE class.fqn = \"" + candidateVartype + "\" "
+						+ "WHERE class.fqn = \"" + candidateFieldVartype + "\" "
 					+ "RETURN class";
 			Result classQueryResult = dbService.execute(classQuery);
 			
 			String packageQuery = 
 					"MATCH (package:Package) "
 							+ "USING INDEX package:Package(name)"
-							+ "WHERE package.name = \"" + StringUtil.extractPackagePath(candidateVartype) + "\" "
+							+ "WHERE package.name = \"" + StringUtil.extractPackagePath(candidateFieldVartype) + "\" "
 					+ "RETURN package";
 			Result packageQueryResult = dbService.execute(packageQuery);
 			
@@ -524,7 +527,7 @@ public class Transform2NullObject {
 					 * Change vartype of Fields similar to candidate and their assignments to abstract class path.
 					 */
 					updateFieldAssigments(distinctCandidate.getValue(), abstractFqn);
-					ResourceIterator<Node> similarFields = dbService.findNodes(Label.label("Field"), "vartype", candidateVartype);
+					ResourceIterator<Node> similarFields = dbService.findNodes(Label.label("Field"), "vartype", candidateFieldVartype);
 					while (similarFields.hasNext()){
 						Node similarField = similarFields.next();
 						similarField.setProperty("vartype", abstractFqn);
