@@ -11,7 +11,6 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
@@ -20,6 +19,10 @@ import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
 
 import com.tnr.neo4j.java.nullobject.util.Constants;
+import com.tnr.neo4j.java.nullobject.util.RelTypes;
+import com.tnr.neo4j.java.nullobject.util.SDGLabel;
+import com.tnr.neo4j.java.nullobject.util.SDGPropertyKey;
+import com.tnr.neo4j.java.nullobject.util.SDGPropertyValues;
 import com.tnr.neo4j.java.nullobject.util.StringUtil;
 
 
@@ -62,13 +65,6 @@ public class NullObjectTransformation {
 	private Map<String, Node> distinctCandidates = new HashMap<>();
 	
 	
-	private enum RelTypes implements RelationshipType {
-		EXTENDS, CONTAINS_TYPE, CONTAINS_METHOD, DATA_FLOW, CONTROL_FLOW, CALLS, 
-		AGGREGATED_CALLS, LAST_UNIT, CONTAINS_FIELD, CONTAINS_UNIT, CONTAINS_CONSTRUCTOR,
-		AGGREGATED_FIELD_WRITE
-	}
-	
-	
 	/**
 	 * Creates necessary indexes, if they don't already exist.
 	 */
@@ -82,11 +78,11 @@ public class NullObjectTransformation {
 			tx.success();
 		}
 		
-		createIndex("Field", "isfinal");
-		createIndex("Condition", "operation");
-		createIndex("NopStmt", "nopkind");
-		createIndex("Class","fqn");
-		createIndex("Package", "name");
+		createIndex(SDGPropertyValues.TYPE_FIELD, SDGPropertyKey.ISFINAL);
+		createIndex(SDGPropertyValues.TYPE_CONDITION, SDGPropertyKey.OPERATION);
+		createIndex(SDGPropertyValues.TYPE_NOPSTMT, SDGPropertyKey.NOPKIND);
+		createIndex(SDGPropertyValues.TYPE_CLASS, SDGPropertyKey.FQN);
+		createIndex(SDGPropertyValues.TYPE_PACKAGE, SDGPropertyKey.NAME);
 	}
 	
 	/**
@@ -203,7 +199,7 @@ public class NullObjectTransformation {
 		 * Transform each candidate individually.
 		 */
 		
-		// TODO: Check for unique class prefixes.
+		// TODO: Check uniqueness of class prefixes.
 		for (Map.Entry<String, Node> candidate : distinctCandidates.entrySet()){
 			
 			
@@ -230,27 +226,27 @@ public class NullObjectTransformation {
 				
 				Map<String,Object> candidateProperties = candidateNode.getAllProperties();
 				final long candidateId = candidateNode.getId();
-				Label classLabel = Label.label("Class");
-				candidateFqn = (String) candidateProperties.get("fqn");
+				candidateFqn = (String) candidateProperties.get(SDGPropertyKey.FQN);
 				
 				/*
 				 * Create new class paths for each node.
 				 */
-				final String realFqn = StringUtil.addPrefixToClass(realPrefix, candidateProperties.get("fqn"));
-				final String nullFqn = StringUtil.addPrefixToClass(nullPrefix, candidateProperties.get("fqn"));
-				final String abstractFqn = StringUtil.addPrefixToClass(abstractPrefix, candidateProperties.get("fqn"));
+				final String realFqn = StringUtil.addPrefixToClass(realPrefix, candidateProperties.get(SDGPropertyKey.FQN));
+				final String nullFqn = StringUtil.addPrefixToClass(nullPrefix, candidateProperties.get(SDGPropertyKey.FQN));
+				final String abstractFqn = StringUtil.addPrefixToClass(abstractPrefix, candidateProperties.get(SDGPropertyKey.FQN));
 				
 				/*
 				 * Create realNode and relationships
 				 */
-				Node realNode = dbService.createNode(classLabel);
-				realNode.setProperty("fqn", realFqn);
-				realNode.setProperty("displayname", realPrefix+candidateProperties.get("displayname"));
-				realNode.setProperty("name", realPrefix+candidateProperties.get("name"));
-				realNode.setProperty("visibility", candidateProperties.get("visibility"));
-				realNode.setProperty("origin", candidateProperties.get("origin"));
-				realNode.setProperty("type", candidateProperties.get("type"));
-				realNode.setProperty("isabstract", "false");
+				Node realNode = dbService.createNode(SDGLabel.CLASS);
+				realNode.setProperty(SDGPropertyKey.FQN, realFqn);
+				realNode.setProperty(SDGPropertyKey.DISPLAYNAME, realPrefix+candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
+				realNode.setProperty(SDGPropertyKey.NAME, realPrefix+candidateProperties.get(SDGPropertyKey.NAME));
+				realNode.setProperty(SDGPropertyKey.VISIBILITY, candidateProperties.get(SDGPropertyKey.VISIBILITY));
+				realNode.setProperty(SDGPropertyKey.ORIGIN, candidateProperties.get(SDGPropertyKey.ORIGIN));
+				realNode.setProperty(SDGPropertyKey.TYPE, candidateProperties.get(SDGPropertyKey.TYPE));
+				realNode.setProperty(SDGPropertyKey.ISABSTRACT, "false");
+				realNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
 				
 				/*Relationship relationship = */
 				realNode.createRelationshipTo(candidateNode, RelTypes.EXTENDS);
@@ -259,14 +255,15 @@ public class NullObjectTransformation {
 				/*
 				 * Create nullNode and relationships
 				 */
-				Node nullNode = dbService.createNode(classLabel);
-				nullNode.setProperty("fqn", nullFqn);
-				nullNode.setProperty("displayname", nullPrefix+candidateProperties.get("displayname"));
-				nullNode.setProperty("name", nullPrefix+candidateProperties.get("name"));
-				nullNode.setProperty("visibility", candidateProperties.get("visibility"));
-				nullNode.setProperty("origin", candidateProperties.get("origin"));
-				nullNode.setProperty("type", candidateProperties.get("type"));
-				nullNode.setProperty("isabstract", "false");
+				Node nullNode = dbService.createNode(SDGLabel.CLASS);
+				nullNode.setProperty(SDGPropertyKey.FQN, nullFqn);
+				nullNode.setProperty(SDGPropertyKey.DISPLAYNAME, nullPrefix+candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
+				nullNode.setProperty(SDGPropertyKey.NAME, nullPrefix+candidateProperties.get(SDGPropertyKey.NAME));
+				nullNode.setProperty(SDGPropertyKey.VISIBILITY, candidateProperties.get(SDGPropertyKey.VISIBILITY));
+				nullNode.setProperty(SDGPropertyKey.ORIGIN, candidateProperties.get(SDGPropertyKey.ORIGIN));
+				nullNode.setProperty(SDGPropertyKey.TYPE, candidateProperties.get(SDGPropertyKey.TYPE));
+				nullNode.setProperty(SDGPropertyKey.ISABSTRACT, "false");
+				nullNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
 				
 				nullNode.createRelationshipTo(candidateNode, RelTypes.EXTENDS);
 				packageNode.createRelationshipTo(nullNode, RelTypes.CONTAINS_TYPE);
@@ -275,19 +272,20 @@ public class NullObjectTransformation {
 				/*
 				 * Change node to abstractNode and update candidate vartype.
 				 */
-				candidateNode.setProperty("fqn", abstractFqn);
-				candidateNode.setProperty("displayname", abstractPrefix + candidateProperties.get("displayname"));
-				candidateNode.setProperty("name", abstractPrefix + candidateProperties.get("name"));
-				candidateNode.setProperty("vartype", abstractFqn);
-				candidateNode.setProperty("isabstract", "true");
+				candidateNode.setProperty(SDGPropertyKey.FQN, abstractFqn);
+				candidateNode.setProperty(SDGPropertyKey.DISPLAYNAME, abstractPrefix + candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
+				candidateNode.setProperty(SDGPropertyKey.NAME, abstractPrefix + candidateProperties.get(SDGPropertyKey.NAME));
+				candidateNode.setProperty(SDGPropertyKey.VARTYPE, abstractFqn);
+				candidateNode.setProperty(SDGPropertyKey.ISABSTRACT, "true");
+				candidateNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
 				
 				/*
 				 * Create new constructors for nullNode and realNode.
 				 */
 				// TODO: multiple (overloaded) constructors.
 			
-				Node nullConstructorNode = dbService.createNode(Label.label("Constructor"));
-				Node realConstructorNode = dbService.createNode(Label.label("Constructor"));
+				Node nullConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
+				Node realConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
 				
 				Iterable<Relationship> classOutRels = candidateNode.getRelationships(Direction.OUTGOING);
 				for (Relationship rel : classOutRels){
@@ -330,26 +328,26 @@ public class NullObjectTransformation {
 					Node methodNode = methods.next();
 					long methodId = methodNode.getId();
 					Map <String, Object> methodProperties = methodNode.getAllProperties();
-					String methodFqn = (String) methodProperties.get("fqn");
+					String methodFqn = (String) methodProperties.get(SDGPropertyKey.FQN);
 					
-					if (methodProperties.get("visibility").toString().equals("public") 
-							&& methodProperties.get("isabstract").toString().equals("false")) {
+					if (methodProperties.get(SDGPropertyKey.VISIBILITY).toString().equals(SDGPropertyValues.PUBLIC) 
+							&& methodProperties.get(SDGPropertyKey.ISABSTRACT).toString().equals(SDGPropertyValues.FALSE)) {
 						
 						/*
 						 * Create new methods for null and abstract node.
 						 */
-						Node abstractMethodNode = dbService.createNode(Label.label("Method"));
-						Node nullMethodNode = dbService.createNode(Label.label("Method"));
+						Node abstractMethodNode = dbService.createNode(SDGLabel.METHOD);
+						Node nullMethodNode = dbService.createNode(SDGLabel.METHOD);
 						
 						for (String key : methodProperties.keySet()){
-							if (!key.equals("fqn")){
+							if (!key.equals(SDGPropertyKey.FQN)){
 								abstractMethodNode.setProperty(key, methodProperties.get(key));
 								nullMethodNode.setProperty(key, methodProperties.get(key));
 							}
 						}
-						abstractMethodNode.setProperty("isabstract", true);
-						abstractMethodNode.setProperty("fqn", StringUtil.addClassPathToMethod(abstractFqn, methodFqn));
-						nullMethodNode.setProperty("fqn", StringUtil.addClassPathToMethod(nullFqn, methodFqn));
+						abstractMethodNode.setProperty(SDGPropertyKey.ISABSTRACT, true);
+						abstractMethodNode.setProperty(SDGPropertyKey.FQN, StringUtil.addClassPathToMethod(abstractFqn, methodFqn));
+						nullMethodNode.setProperty(SDGPropertyKey.FQN, StringUtil.addClassPathToMethod(nullFqn, methodFqn));
 						
 						Iterable<Relationship> methodRels = methodNode.getRelationships();
 						
@@ -367,11 +365,11 @@ public class NullObjectTransformation {
 								
 								if (rel.isType(RelTypes.CALLS) && endNodeID == methodId){
 									String newFqn = StringUtil.addClassPathToMethod(abstractFqn, methodFqn);
-									if (startNode.hasLabel(Label.label("MethodCallWithReturnValue"))){
-										startNode.setProperty("fqn", newFqn);
-										startNode.setProperty("rightValue", StringUtil.buildRightValue(abstractFqn, startNode.getAllProperties()));
-									} else if (startNode.hasLabel(Label.label("MethodCall"))) {
-										startNode.setProperty("fqn", newFqn);
+									if (startNode.hasLabel(SDGLabel.METHODCALLWITHRETURNVALUE)){
+										startNode.setProperty(SDGPropertyKey.FQN, newFqn);
+										startNode.setProperty(SDGPropertyKey.RIGHTVALUE, StringUtil.buildRightValue(abstractFqn, startNode.getAllProperties()));
+									} else if (startNode.hasLabel(SDGLabel.METHODCALL)) {
+										startNode.setProperty(SDGPropertyKey.FQN, newFqn);
 									}
 								}
 								
@@ -388,57 +386,57 @@ public class NullObjectTransformation {
 						 * Create control flow for null method.
 						 */
 						
-						Node thisNode = dbService.createNode(Label.label("Assignment"));
+						Node thisNode = dbService.createNode(SDGLabel.ASSIGNMENT);
 						nullMethodNode.createRelationshipTo(thisNode, RelTypes.CONTROL_FLOW);
 						nullMethodNode.createRelationshipTo(thisNode, RelTypes.CONTAINS_UNIT);
 						
-						thisNode.setProperty("operation", "thisdeclaration");
-						thisNode.setProperty("type", "Assignment");
-						thisNode.setProperty("var", "this");
-						thisNode.setProperty("vartype", nullFqn);
-						thisNode.setProperty("rightValue", "@this: " + nullFqn);
-						thisNode.setProperty("displayname", "this = @this: " + nullFqn);
+						thisNode.setProperty(SDGPropertyKey.OPERATION, "thisdeclaration");
+						thisNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_ASSIGNMENT);
+						thisNode.setProperty(SDGPropertyKey.VAR, "this");
+						thisNode.setProperty(SDGPropertyKey.VARTYPE, nullFqn);
+						thisNode.setProperty(SDGPropertyKey.RIGHTVALUE, "@this: " + nullFqn);
+						thisNode.setProperty(SDGPropertyKey.DISPLAYNAME, "this = @this: " + nullFqn);
 						
 						
 						//Create nodes for each parameter
-						int parameterscount = (int) nullMethodNode.getProperty("parameterscount");
+						int parameterscount = (int) nullMethodNode.getProperty(SDGPropertyKey.PARAMETERSCOUNT);
 						Node lastNode = thisNode;
 						for (int i = 0; i < parameterscount; i++) {
-							Node parameterNode = dbService.createNode(Label.label("Assignment"));
+							Node parameterNode = dbService.createNode(SDGLabel.ASSIGNMENT);
 							lastNode.createRelationshipTo(parameterNode, RelTypes.CONTROL_FLOW);
 							String thisVartype = nullMethodNode.getProperty("p" + i).toString();
 							
-							parameterNode.setProperty("vartype", thisVartype);
-							parameterNode.setProperty("var", "arg" + i);
-							parameterNode.setProperty("rightValue", "@parameter" + i + ": " + thisVartype);
-							parameterNode.setProperty("displayname", "arg" + i + " = @parameter" + i + ": " + thisVartype);
-							parameterNode.setProperty("type", "Assignment");
-							parameterNode.setProperty("operation", "parameterdeclaration");
+							parameterNode.setProperty(SDGPropertyKey.VARTYPE, thisVartype);
+							parameterNode.setProperty(SDGPropertyKey.VAR, "arg" + i);
+							parameterNode.setProperty(SDGPropertyKey.RIGHTVALUE, "@parameter" + i + ": " + thisVartype);
+							parameterNode.setProperty(SDGPropertyKey.DISPLAYNAME, "arg" + i + " = @parameter" + i + ": " + thisVartype);
+							parameterNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_ASSIGNMENT);
+							parameterNode.setProperty(SDGPropertyKey.OPERATION, "parameterdeclaration");
 							
 							lastNode = parameterNode;
 						}
 						
 						//Create return node or return with argument.
-						if (methodProperties.get("returntype").toString().equals("void")){
-							Node returnNode = dbService.createNode(Label.label("ReturnStmt"));
-							returnNode.setProperty("type", "ReturnStmt");
-							returnNode.setProperty("displayname", "return");
+						if (methodProperties.get(SDGPropertyKey.RETURNTYPE).toString().equals("void")){
+							Node returnNode = dbService.createNode(SDGLabel.RETURNSTMT);
+							returnNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_RETURNSTMT);
+							returnNode.setProperty(SDGPropertyKey.DISPLAYNAME, "return");
 							returnNode.createRelationshipTo(nullMethodNode, RelTypes.LAST_UNIT);
 							lastNode.createRelationshipTo(returnNode, RelTypes.CONTROL_FLOW);
 						} else {
-							Node returnValueNode = dbService.createNode(Label.label("Assignment"));
-							returnValueNode.setProperty("vartype", methodProperties.get("returntype"));
-							returnValueNode.setProperty("var", "temp$0");
-							returnValueNode.setProperty("rightValue", "null");
-							returnValueNode.setProperty("displayname", "temp$0 = null");
-							returnValueNode.setProperty("type", "Assignment");
-							returnValueNode.setProperty("operation", "value");
+							Node returnValueNode = dbService.createNode(SDGLabel.ASSIGNMENT);
+							returnValueNode.setProperty(SDGPropertyKey.VARTYPE, methodProperties.get(SDGPropertyKey.RETURNTYPE));
+							returnValueNode.setProperty(SDGPropertyKey.VAR, "temp$0");
+							returnValueNode.setProperty(SDGPropertyKey.RIGHTVALUE, "null");
+							returnValueNode.setProperty(SDGPropertyKey.DISPLAYNAME, "temp$0 = null");
+							returnValueNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_ASSIGNMENT);
+							returnValueNode.setProperty(SDGPropertyKey.OPERATION, "value");
 							
-							Node returnNode = dbService.createNode(Label.label("ReturnStmt"));
-							returnNode.setProperty("displayname", "return temp$0");
-							returnNode.setProperty("rightValue", "temp$0");
-							returnNode.setProperty("type", "ReturnStmt");
-							returnNode.setProperty("operation", "value");
+							Node returnNode = dbService.createNode(SDGLabel.RETURNSTMT);
+							returnNode.setProperty(SDGPropertyKey.DISPLAYNAME, "return temp$0");
+							returnNode.setProperty(SDGPropertyKey.RIGHTVALUE, "temp$0");
+							returnNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_RETURNSTMT);
+							returnNode.setProperty(SDGPropertyKey.OPERATION, "value");
 							
 							lastNode.createRelationshipTo(returnValueNode, RelTypes.CONTROL_FLOW);
 							returnValueNode.createRelationshipTo(returnNode, RelTypes.DATA_FLOW);
@@ -448,7 +446,7 @@ public class NullObjectTransformation {
 						
 						
 					} 
-					else if (methodProperties.get("visibility").toString().equals("private")) {
+					else if (methodProperties.get(SDGPropertyKey.VISIBILITY).toString().equals(SDGPropertyValues.PRIVATE)) {
 						//Private methods keep their relationships as they are only known to their own class.
 						Iterable<Relationship> rels = methodNode.getRelationships();
 						
@@ -458,16 +456,16 @@ public class NullObjectTransformation {
 							} else if (rel.isType(RelTypes.CALLS) && rel.getEndNodeId() == methodId){
 								Node startNode = rel.getStartNode();
 								String newFqn = StringUtil.addClassPathToMethod(realFqn, methodFqn);
-								if (startNode.hasLabel(Label.label("MethodCallWithReturnValue"))){
-									startNode.setProperty("fqn", newFqn);
-									startNode.setProperty("rightValue", StringUtil.buildRightValue(realFqn, startNode.getAllProperties()));
-								} else if (startNode.hasLabel(Label.label("MethodCall"))) {
-									startNode.setProperty("fqn", newFqn);
+								if (startNode.hasLabel(SDGLabel.METHODCALLWITHRETURNVALUE)){
+									startNode.setProperty(SDGPropertyKey.FQN, newFqn);
+									startNode.setProperty(SDGPropertyKey.RIGHTVALUE, StringUtil.buildRightValue(realFqn, startNode.getAllProperties()));
+								} else if (startNode.hasLabel(SDGLabel.METHODCALL)) {
+									startNode.setProperty(SDGPropertyKey.FQN, newFqn);
 								}
 							}
 						}
 					}
-					methodNode.setProperty("fqn", StringUtil.addClassPathToMethod(realFqn, methodFqn));
+					methodNode.setProperty(SDGPropertyKey.FQN, StringUtil.addClassPathToMethod(realFqn, methodFqn));
 					Relationship thisRelation = methodNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING);
 					if (thisRelation != null){
 						updateThisAssignmentNode(thisRelation.getEndNode(), realFqn);
@@ -506,7 +504,7 @@ public class NullObjectTransformation {
 				String candidateFieldVartype = "";
 				Node mainClass = null;
 				
-				candidateFieldVartype = (String) distinctCandidateField.getValue().getProperty("vartype");
+				candidateFieldVartype = (String) distinctCandidateField.getValue().getProperty(SDGPropertyKey.VARTYPE);
 				mainClass = distinctCandidateField.getValue()
 						.getSingleRelationship(RelTypes.CONTAINS_FIELD, Direction.INCOMING).getStartNode();
 				
@@ -527,7 +525,7 @@ public class NullObjectTransformation {
 					return;
 				} else {
 					System.out.println("Started transforming the field " + candidateFieldVartype + " contained in " 
-							+ mainClass.getProperty("fqn") + ".");
+							+ mainClass.getProperty(SDGPropertyKey.FQN) + ".");
 				}
 				
 				// TODO: only change in this mainclass.
@@ -537,7 +535,7 @@ public class NullObjectTransformation {
 				Map<String, Node> candidateConditionAssignments = new HashMap<>();
 				for (String key : distinctConditionAssignments.keySet()){
 					Node node = distinctConditionAssignments.get(key);
-					if (node.getProperty("vartype").toString().equals(candidateFieldVartype)){
+					if (node.getProperty(SDGPropertyKey.VARTYPE).toString().equals(candidateFieldVartype)){
 						candidateConditionAssignments.put(key,node);
 					}
 				}
@@ -562,10 +560,10 @@ public class NullObjectTransformation {
 			/*
 			 * Change vartype of fields similar to candidate field and their assignments to abstract class path.
 			 */
-			ResourceIterator<Node> similarFields = dbService.findNodes(Label.label("Field"), "vartype", candidateFqn);
+			ResourceIterator<Node> similarFields = dbService.findNodes(SDGLabel.FIELD, SDGPropertyKey.VARTYPE, candidateFqn);
 			while (similarFields.hasNext()){
 				Node similarField = similarFields.next();
-				similarField.setProperty("vartype", abstractFqn);
+				similarField.setProperty(SDGPropertyKey.VARTYPE, abstractFqn);
 				updateFieldAssigments(similarField, abstractFqn);
 			}
 			similarFields.close();
@@ -602,7 +600,7 @@ public class NullObjectTransformation {
 			constructors.add(rel.getEndNode());
 		}
 		
-		String mainFqn = (String) mainClass.getProperty("fqn");
+		String mainFqn = (String) mainClass.getProperty(SDGPropertyKey.FQN);
 		int fieldNum = 0;
 		while (fields.hasNext()){
 			Node field = fields.next();
@@ -631,9 +629,9 @@ public class NullObjectTransformation {
 		superRel.delete();
 		
 		
-		Node tempAssign = dbService.createNode(Label.label("Assignment"));
-		Node init = dbService.createNode(Label.label("ConstructorCall"));
-		Node fieldAssign = dbService.createNode(Label.label("Assignment"));
+		Node tempAssign = dbService.createNode(SDGLabel.ASSIGNMENT);
+		Node init = dbService.createNode(SDGLabel.CONSTRUCTOR);
+		Node fieldAssign = dbService.createNode(SDGLabel.ASSIGNMENT);
 		
 		constructor.createRelationshipTo(field, RelTypes.AGGREGATED_FIELD_WRITE);
 		constructorThisNode.createRelationshipTo(fieldAssign, RelTypes.DATA_FLOW);
@@ -646,34 +644,34 @@ public class NullObjectTransformation {
 		fieldAssign.createRelationshipTo(field, RelTypes.DATA_FLOW);
 		fieldAssign.createRelationshipTo(nextNode, RelTypes.CONTROL_FLOW);
 		
-		String nullFqn = (String) nullNode.getProperty("fqn");
+		String nullFqn = (String) nullNode.getProperty(SDGPropertyKey.FQN);
 		String var = "newTemp$" + num;
 		String rightValue = "new " + nullFqn;
 		
-		tempAssign.setProperty("vartype", nullFqn);
-		tempAssign.setProperty("var", var);
-		tempAssign.setProperty("rightValue", rightValue);
-		tempAssign.setProperty("displayname" , var + " = " + rightValue);
-		tempAssign.setProperty("type", "Assignment");
-		tempAssign.setProperty("operation", "new");
+		tempAssign.setProperty(SDGPropertyKey.VARTYPE, nullFqn);
+		tempAssign.setProperty(SDGPropertyKey.VAR, var);
+		tempAssign.setProperty(SDGPropertyKey.RIGHTVALUE, rightValue);
+		tempAssign.setProperty(SDGPropertyKey.DISPLAYNAME , var + " = " + rightValue);
+		tempAssign.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_ASSIGNMENT);
+		tempAssign.setProperty(SDGPropertyKey.OPERATION, "new");
 		
-		init.setProperty("args", new String[0]);
-		init.setProperty("caller", var);
-		init.setProperty("fqn", nullFqn + ".<init>()");
-		init.setProperty("argumentscount", 0);
-		init.setProperty("displayname", "<init>()");
-		init.setProperty("returntype", "void");
-		init.setProperty("name", "<init>");
-		init.setProperty("type", "ConstructorCall");
+		init.setProperty(SDGPropertyKey.ARGS, new String[0]);
+		init.setProperty(SDGPropertyKey.CALLER, var);
+		init.setProperty(SDGPropertyKey.FQN, nullFqn + ".<init>()");
+		init.setProperty(SDGPropertyKey.ARGUMENTSCOUNT, 0);
+		init.setProperty(SDGPropertyKey.DISPLAYNAME, "<init>()");
+		init.setProperty(SDGPropertyKey.RETURNTYPE, "void");
+		init.setProperty(SDGPropertyKey.NAME, "<init>");
+		init.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_CONSTRUCTORCALL);
 		
-		String fieldFqn = (String) field.getProperty("vartype");
-		String fieldName = (String) field.getProperty("name");
-		fieldAssign.setProperty("vartype", fieldFqn);
-		fieldAssign.setProperty("var", fieldName);
-		fieldAssign.setProperty("rightValue", var);
-		fieldAssign.setProperty("displayname" , "this.<" + mainFqn + ": " + fieldFqn + " " + fieldName + "> = " + var);
-		fieldAssign.setProperty("type", "Assignment");
-		fieldAssign.setProperty("operation", "value");
+		String fieldFqn = (String) field.getProperty(SDGPropertyKey.VARTYPE);
+		String fieldName = (String) field.getProperty(SDGPropertyKey.NAME);
+		fieldAssign.setProperty(SDGPropertyKey.VARTYPE, fieldFqn);
+		fieldAssign.setProperty(SDGPropertyKey.VAR, fieldName);
+		fieldAssign.setProperty(SDGPropertyKey.RIGHTVALUE, var);
+		fieldAssign.setProperty(SDGPropertyKey.DISPLAYNAME , "this.<" + mainFqn + ": " + fieldFqn + " " + fieldName + "> = " + var);
+		fieldAssign.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_ASSIGNMENT);
+		fieldAssign.setProperty(SDGPropertyKey.OPERATION, "value");
 	}
 	
 	/**
@@ -683,25 +681,25 @@ public class NullObjectTransformation {
 	 * @param vartype
 	 */
 	private void updateFieldAssigments(Node fieldNode, String vartype){
-		String candidateName = fieldNode.getProperty("name").toString();
+		String candidateName = fieldNode.getProperty(SDGPropertyKey.NAME).toString();
 		Iterable<Relationship> candidateOutRels = fieldNode.getRelationships(RelTypes.DATA_FLOW, Direction.OUTGOING);
 		for (Relationship rel : candidateOutRels) {
 			
-			if (rel.getEndNode().hasLabel(Label.label("Assignment"))){
+			if (rel.getEndNode().hasLabel(SDGLabel.ASSIGNMENT)){
 				Node endNode = rel.getEndNode();
-				endNode.setProperty("vartype", vartype);
-				String displayname = endNode.getProperty("displayname").toString();
-				endNode.setProperty("displayname", StringUtil.buildOutgoingDisplayname(vartype, displayname, candidateName));
+				endNode.setProperty(SDGPropertyKey.VARTYPE, vartype);
+				String displayname = endNode.getProperty(SDGPropertyKey.DISPLAYNAME).toString();
+				endNode.setProperty(SDGPropertyKey.DISPLAYNAME, StringUtil.buildOutgoingDisplayname(vartype, displayname, candidateName));
 			}
 		}
 		Iterable<Relationship> candidateInRels = fieldNode.getRelationships(RelTypes.DATA_FLOW, Direction.INCOMING);
 		for (Relationship rel : candidateInRels) {
 			
-			if (rel.getStartNode().hasLabel(Label.label("Assignment"))){
+			if (rel.getStartNode().hasLabel(SDGLabel.ASSIGNMENT)){
 				Node startNode = rel.getStartNode();
-				startNode.setProperty("vartype", vartype);
-				String displayname = startNode.getProperty("displayname").toString();
-				startNode.setProperty("displayname", StringUtil.buildIncomingDisplayname(vartype, displayname, candidateName));
+				startNode.setProperty(SDGPropertyKey.VARTYPE, vartype);
+				String displayname = startNode.getProperty(SDGPropertyKey.DISPLAYNAME).toString();
+				startNode.setProperty(SDGPropertyKey.DISPLAYNAME, StringUtil.buildIncomingDisplayname(vartype, displayname, candidateName));
 			}
 		}
 	}
@@ -716,15 +714,15 @@ public class NullObjectTransformation {
 		Iterable<Relationship> fieldInRels = fieldNode.getRelationships(RelTypes.DATA_FLOW, Direction.INCOMING);
 		for (Relationship rel : fieldInRels) {
 			Node startNode = rel.getStartNode();
-			String displayname = startNode.getProperty("displayname").toString();
-			startNode.setProperty("displayname", StringUtil.buildIncomingInternalDisplayname(vartype, displayname));
+			String displayname = startNode.getProperty(SDGPropertyKey.DISPLAYNAME).toString();
+			startNode.setProperty(SDGPropertyKey.DISPLAYNAME, StringUtil.buildIncomingInternalDisplayname(vartype, displayname));
 		}
 		
 		Iterable<Relationship> fieldOutRels = fieldNode.getRelationships(RelTypes.DATA_FLOW, Direction.OUTGOING);
 		for (Relationship rel : fieldOutRels) {
 			Node endNode = rel.getEndNode();
-			String displayname = endNode.getProperty("displayname").toString();
-			endNode.setProperty("displayname", StringUtil.buildOutgoingInternalDisplayname(vartype, displayname));
+			String displayname = endNode.getProperty(SDGPropertyKey.DISPLAYNAME).toString();
+			endNode.setProperty(SDGPropertyKey.DISPLAYNAME, StringUtil.buildOutgoingInternalDisplayname(vartype, displayname));
 		}
 	}
 	
@@ -741,9 +739,9 @@ public class NullObjectTransformation {
 		}
 		
 		String rightValue = "@this: " + vartype;
-		thisNode.setProperty("vartype", vartype);
-		thisNode.setProperty("rightValue", rightValue);
-		thisNode.setProperty("displayname", "this = " + rightValue);
+		thisNode.setProperty(SDGPropertyKey.VARTYPE, vartype);
+		thisNode.setProperty(SDGPropertyKey.RIGHTVALUE, rightValue);
+		thisNode.setProperty(SDGPropertyKey.DISPLAYNAME, "this = " + rightValue);
 	}
 	
 	/**
@@ -757,9 +755,9 @@ public class NullObjectTransformation {
 		
 			Map<String, Object> superConstructorProperties = superConstructor.getAllProperties();
 			Node ctorNode = newConstructor;
-			Node thisNode = dbService.createNode(Label.label("Assignment"));
-			Node superNode = dbService.createNode(Label.label("ConstructorCall"));
-			Node returnNode = dbService.createNode(Label.label("ReturnStmt"));
+			Node thisNode = dbService.createNode(SDGLabel.ASSIGNMENT);
+			Node superNode = dbService.createNode(SDGLabel.CONSTRUCTORCALL);
+			Node returnNode = dbService.createNode(SDGLabel.RETURNSTMT);
 			
 			ctorNode.createRelationshipTo(superConstructor, RelTypes.AGGREGATED_CALLS);
 			ctorNode.createRelationshipTo(thisNode, RelTypes.CONTAINS_UNIT);
@@ -774,42 +772,42 @@ public class NullObjectTransformation {
 			returnNode.createRelationshipTo(ctorNode, RelTypes.LAST_UNIT);
 			
 			for(String key : superConstructorProperties.keySet()){
-				if (!key.equals("fqn")){
+				if (!key.equals(SDGPropertyKey.FQN)){
 					ctorNode.setProperty(key, superConstructorProperties.get(key));
 				} else {
-					ctorNode.setProperty("fqn", classFqn + ".<init>()");
+					ctorNode.setProperty(SDGPropertyKey.FQN, classFqn + ".<init>()");
 				}
 			}
 			
-			thisNode.setProperty("vartype", classFqn);
-			thisNode.setProperty("var", "this");
+			thisNode.setProperty(SDGPropertyKey.VARTYPE, classFqn);
+			thisNode.setProperty(SDGPropertyKey.VAR, "this");
 			String rightValue = "@this: " + classFqn;
-			thisNode.setProperty("displayname", "this = " + rightValue);
-			thisNode.setProperty("rightValue", rightValue);
-			thisNode.setProperty("lineNumber", 3);
-			thisNode.setProperty("type", "Assignment");
-			thisNode.setProperty("operation", "thisdeclaration");
+			thisNode.setProperty(SDGPropertyKey.DISPLAYNAME, "this = " + rightValue);
+			thisNode.setProperty(SDGPropertyKey.RIGHTVALUE, rightValue);
+			thisNode.setProperty(SDGPropertyKey.LINENUMBER, 3);
+			thisNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_ASSIGNMENT);
+			thisNode.setProperty(SDGPropertyKey.OPERATION, "thisdeclaration");
 			
 			// TODO: Create option for constructor with arguments
 			
-			int parameterscount = (int)superConstructorProperties.get("parameterscount");
+			int parameterscount = (int)superConstructorProperties.get(SDGPropertyKey.PARAMETERSCOUNT);
 			String[] superArgs = new String[parameterscount];
 			for (int i = 0; i < parameterscount; i++){
 				superArgs[i] = "arg" + i;
 			}
 			
 			
-			superNode.setProperty("args", superArgs);
-			superNode.setProperty("caller", "this");
-			superNode.setProperty("fqn", superConstructorProperties.get("fqn"));
-			superNode.setProperty("argumentscount", superConstructorProperties.get("parameterscount"));
-			superNode.setProperty("displayname", "<init>()");
-			superNode.setProperty("returntype", "void");
-			superNode.setProperty("name", "super");
-			superNode.setProperty("type", "ConstructorCall");
+			superNode.setProperty(SDGPropertyKey.ARGS, superArgs);
+			superNode.setProperty(SDGPropertyKey.CALLER, "this");
+			superNode.setProperty(SDGPropertyKey.FQN, superConstructorProperties.get(SDGPropertyKey.FQN));
+			superNode.setProperty(SDGPropertyKey.ARGUMENTSCOUNT, superConstructorProperties.get(SDGPropertyKey.PARAMETERSCOUNT));
+			superNode.setProperty(SDGPropertyKey.DISPLAYNAME, "<init>()");
+			superNode.setProperty(SDGPropertyKey.RETURNTYPE, "void");
+			superNode.setProperty(SDGPropertyKey.NAME, "super");
+			superNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_CONSTRUCTORCALL);
 			
-			returnNode.setProperty("displayname", "return");
-			returnNode.setProperty("type", "ReturnStmt");
+			returnNode.setProperty(SDGPropertyKey.DISPLAYNAME, "return");
+			returnNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_RETURNSTMT);
 	}
 	
 	/**
@@ -829,14 +827,14 @@ public class NullObjectTransformation {
 			} else if (constructorRel.isType(RelTypes.CALLS)) {
 				Node startNode = constructorRel.getStartNode();
 				
-				startNode.setProperty("fqn", newFqn + ".<init>()");
+				startNode.setProperty(SDGPropertyKey.FQN, newFqn + ".<init>()");
 				
 				Node newAssignNode = startNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
 				
-				newAssignNode.setProperty("vartype", newFqn);
+				newAssignNode.setProperty(SDGPropertyKey.VARTYPE, newFqn);
 				String rightValue = "new " + newFqn;
-				newAssignNode.setProperty("rightValue", rightValue);
-				newAssignNode.setProperty("displayname", newAssignNode.getProperty("var") + " = " + rightValue);
+				newAssignNode.setProperty(SDGPropertyKey.RIGHTVALUE, rightValue);
+				newAssignNode.setProperty(SDGPropertyKey.DISPLAYNAME, newAssignNode.getProperty(SDGPropertyKey.VAR) + " = " + rightValue);
 				
 				startNode.createRelationshipTo(newConstrutctor, constructorRel.getType());
 				constructorRel.delete();
@@ -853,17 +851,17 @@ public class NullObjectTransformation {
 	 */
 	private void transferConstructorFlow(Node oldConstructor, Node newConstructor, String newFqn){
 		
-		if (oldConstructor.getProperty("isabstract").toString().equals("true")){
+		if (oldConstructor.getProperty(SDGPropertyKey.ISABSTRACT).toString().equals(SDGPropertyValues.TRUE)){
 			return;
 		}
 		
 		Map<String, Object> oldConstructorProperties = oldConstructor.getAllProperties();
 		
 		for(String key : oldConstructorProperties.keySet()){
-			if (!key.equals("fqn")){
+			if (!key.equals(SDGPropertyKey.FQN)){
 				newConstructor.setProperty(key, oldConstructorProperties.get(key));
 			} else {
-				newConstructor.setProperty("fqn", newFqn + ".<init>()");
+				newConstructor.setProperty(SDGPropertyKey.FQN, newFqn + ".<init>()");
 			}
 		}
 			
@@ -891,8 +889,8 @@ public class NullObjectTransformation {
 		containsUnit.delete();
 		
 		Node superNode = thisNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
-		superNode.setProperty("fqn", oldConstructor.getProperty("fqn"));
-		superNode.setProperty("argumentscount", oldConstructor.getProperty("parameterscount"));
+		superNode.setProperty(SDGPropertyKey.FQN, oldConstructor.getProperty(SDGPropertyKey.FQN));
+		superNode.setProperty(SDGPropertyKey.ARGUMENTSCOUNT, oldConstructor.getProperty(SDGPropertyKey.PARAMETERSCOUNT));
 		superNode.getSingleRelationship(RelTypes.CALLS, Direction.OUTGOING).delete();
 		superNode.createRelationshipTo(oldConstructor, RelTypes.CALLS);
 		
@@ -925,7 +923,7 @@ public class NullObjectTransformation {
 		
 		Node endCondNopStmt = null;
 		long endCondId = 0;
-		if (incomingNopStmt.hasProperty("nopkind")){
+		if (incomingNopStmt.hasProperty(SDGPropertyKey.NOPKIND)){
 			endCondNopStmt = incomingNopStmt.getSingleRelationship(RelTypes.LAST_UNIT, Direction.INCOMING).getStartNode();
 			endCondId = endCondNopStmt.getId();
 		}
@@ -941,12 +939,12 @@ public class NullObjectTransformation {
 		 * If this is not the only condition, it can be removed from the conditions but the others must stay.
 		 */
 		
-		boolean firstCondition = incomingNopStmt.hasProperty("nopkind")
-				&& incomingNopStmt.getProperty("nopkind").toString().equals("IF_COND");
+		boolean firstCondition = incomingNopStmt.hasProperty(SDGPropertyKey.NOPKIND)
+				&& incomingNopStmt.getProperty(SDGPropertyKey.NOPKIND).toString().equals("IF_COND");
 		
 		
 		boolean lastCondition = followingNodes.size()==2 
-				&& followingNodes.get(0).hasProperty("nopkind") && followingNodes.get(1).hasProperty("nopkind");
+				&& followingNodes.get(0).hasProperty(SDGPropertyKey.NOPKIND) && followingNodes.get(1).hasProperty(SDGPropertyKey.NOPKIND);
 		
 		
 		if (firstCondition && lastCondition) {
@@ -956,7 +954,7 @@ public class NullObjectTransformation {
 			Node elseNode = null;
 			
 			for (Node nopNode: followingNodes) {
-				String nopkind = nopNode.getProperty("nopkind").toString();
+				String nopkind = nopNode.getProperty(SDGPropertyKey.NOPKIND).toString();
 				if (nopkind.equals("IF_THEN")){
 					thenNode = nopNode;
 				} else if (nopkind.equals("IF_ELSE")) {
@@ -1002,7 +1000,7 @@ public class NullObjectTransformation {
 			Node nextConditionNode = null;
 			
 			for (Node nopNode : followingNodes){
-				if (!nopNode.hasProperty("nopkind")){
+				if (!nopNode.hasProperty(SDGPropertyKey.NOPKIND)){
 					unnamedNode = nopNode;
 					nextConditionNode = nopNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
 				}
@@ -1019,7 +1017,7 @@ public class NullObjectTransformation {
 			Node followingNopNode = null;
 			
 			for (Node nopNode : followingNodes) {
-				if (!nopNode.hasProperty("nopkind") || nopNode.getProperty("nopkind").toString().equals("IF_THEN")){
+				if (!nopNode.hasProperty(SDGPropertyKey.NOPKIND) || nopNode.getProperty(SDGPropertyKey.NOPKIND).toString().equals("IF_THEN")){
 					followingNopNode = nopNode;
 				}
 			}

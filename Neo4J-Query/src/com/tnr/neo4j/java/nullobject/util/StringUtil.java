@@ -139,9 +139,9 @@ public class StringUtil {
 	 */
 	public static String buildRightValue (String abstractFqn, Map<String, Object> properties){
 		
-		String rightValue = "virtualinvoke " + properties.get("caller") + ".<"
-				+ abstractFqn + ": " + properties.get("vartype") 
-				+ properties.get("displayname").toString().split("\\=")[1] + ">()";
+		String rightValue = "virtualinvoke " + properties.get(SDGPropertyKey.CALLER) + ".<"
+				+ abstractFqn + ": " + properties.get(SDGPropertyKey.VARTYPE) 
+				+ properties.get(SDGPropertyKey.DISPLAYNAME).toString().split("\\=")[1] + ">()";
 		
 		return rightValue;
 	}
