@@ -2,7 +2,10 @@ package com.tnr.neo4j.java.nullobject.util;
 
 public class Constants {
 	public static final String GraphDatabaseLocation = "C:\\Users\\Tim-Niklas Reck\\Desktop\\Bachelorarbeit\\sootexample\\databases\\";
-	public static final String GraphDatabaseName = "de.tnr.sdg.example.cache.MainClass";
+			
+	public static final String antDB = "org.apache.tools.ant.Main";		
+	public static final String cacheDB = "de.tnr.sdg.example.cache.MainClass";
+	
 	
 	public static final String MATCH_QUERY = ""
 			+ "MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)\n\u0009"
@@ -14,6 +17,7 @@ public class Constants {
 				+ "WHERE ifStmt.nopkind = \"IF_COND\" "
 					+ "OR ifStmt.nopkind = \"IF_COND_X\" OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)\n"
 			+ "MATCH (candidate:Class)\n\u0009"
-				+ "WHERE candidate.fqn = candidateField.vartype\n"
+				+ "WHERE candidate.fqn = candidateField.vartype"
+					+ " AND candidate.isabstract = false\n"
 			+ "RETURN DISTINCT candidateField, condVariable, candidate";
 }

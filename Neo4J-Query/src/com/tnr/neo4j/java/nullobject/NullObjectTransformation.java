@@ -40,8 +40,10 @@ import com.tnr.neo4j.java.nullobject.util.StringUtil;
  */
 public class NullObjectTransformation {
 	
-	
-	private final GraphDatabaseService dbService = new GraphDatabaseFactory().newEmbeddedDatabase(new File(Constants.GraphDatabaseLocation + Constants.GraphDatabaseName));
+	/**
+	 * The Neo4J DatabaseService that is managing our current database.
+	 */
+	private final GraphDatabaseService dbService;
 	
 	/**
 	 * Used by method createIndexes().
@@ -65,19 +67,25 @@ public class NullObjectTransformation {
 	private Map<String, Node> distinctCandidates = new HashMap<>();
 	
 	
+	public NullObjectTransformation(String databasePath, String databaseName){
+		dbService = new GraphDatabaseFactory().newEmbeddedDatabase(new File(databasePath + databaseName));
+	}
+	
+	public NullObjectTransformation(){
+		dbService = new GraphDatabaseFactory().newEmbeddedDatabase(new File(Constants.GraphDatabaseLocation + Constants.cacheDB));
+	}
+	
 	/**
 	 * Creates necessary indexes, if they don't already exist.
 	 */
 	public void createIndexes() {
 		try (Transaction tx = dbService.beginTx()){
-			
 			if (schema == null){
 				schema = dbService.schema();
 			}
 			indexes = schema.getIndexes();
 			tx.success();
 		}
-		
 		createIndex(SDGPropertyValues.TYPE_FIELD, SDGPropertyKey.ISFINAL);
 		createIndex(SDGPropertyValues.TYPE_CONDITION, SDGPropertyKey.OPERATION);
 		createIndex(SDGPropertyValues.TYPE_NOPSTMT, SDGPropertyKey.NOPKIND);
@@ -91,15 +99,12 @@ public class NullObjectTransformation {
 	 * @param property
 	 */
 	private void createIndex(String label, String property){
-		
 		boolean indexed = false;
 		
 		try(Transaction tx = dbService.beginTx()){
-			
 			for (IndexDefinition def : indexes){
 				indexed = indexed || (def.getLabel().name().equals(label));
 			}
-			
 			if (!indexed) {
 					schema.indexFor(Label.label(label)).on(property).create();
 			}
@@ -287,29 +292,27 @@ public class NullObjectTransformation {
 				Node nullConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
 				Node realConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
 				
-				Iterable<Relationship> classOutRels = candidateNode.getRelationships(Direction.OUTGOING);
+				Iterable<Relationship> classOutRels = candidateNode.getRelationships(RelTypes.CONTAINS_CONSTRUCTOR, Direction.OUTGOING);
 				for (Relationship rel : classOutRels){
-					if (rel.isType(RelTypes.CONTAINS_CONSTRUCTOR)){
-						Node constructorNode = rel.getEndNode();
-						
-						//Transfer old constructor calls to the new constructor for the real node.
-						transferConstructorCalls(constructorNode, realConstructorNode, realFqn);
-						
-						//Transfer old constructor control flow to real constructor.
-						transferConstructorFlow(constructorNode, realConstructorNode, realFqn);
-						
-						realNode.createRelationshipTo(realConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
-						
-						createConstructorFlow(constructorNode, nullConstructorNode, nullFqn);
-						nullNode.createRelationshipTo(nullConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
-						
-						Relationship superCall = constructorNode.getSingleRelationship(RelTypes.AGGREGATED_CALLS, Direction.OUTGOING);
-						Node superConstructor = superCall.getEndNode();
-						superCall.delete();
-						createConstructorFlow(superConstructor, constructorNode, abstractFqn);
+					Node constructorNode = rel.getEndNode();
+					
+					//Transfer old constructor calls to the new constructor for the real node.
+					transferConstructorCalls(constructorNode, realConstructorNode, realFqn);
+					
+					//Transfer old constructor control flow to real constructor.
+					transferConstructorFlow(constructorNode, realConstructorNode, realFqn);
+					
+					realNode.createRelationshipTo(realConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
+					
+					createConstructorFlow(constructorNode, nullConstructorNode, nullFqn);
+					nullNode.createRelationshipTo(nullConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
+					
+					Relationship superCall = constructorNode.getSingleRelationship(RelTypes.AGGREGATED_CALLS, Direction.OUTGOING);
+					Node superConstructor = superCall.getEndNode();
+					superCall.delete();
+					createConstructorFlow(superConstructor, constructorNode, abstractFqn);
 
-						break;
-					}
+					break;
 				}
 				
 				/*
@@ -528,7 +531,6 @@ public class NullObjectTransformation {
 							+ mainClass.getProperty(SDGPropertyKey.FQN) + ".");
 				}
 				
-				// TODO: only change in this mainclass.
 				/*
 				 * Get assignments in if-statements belonging to this vartype.
 				 */
@@ -548,28 +550,42 @@ public class NullObjectTransformation {
 					removeAssignmentFromConditions(candidateConditionAssignments.get(key));
 					distinctConditionAssignments.remove(key);
 				}
-				
-				/*
-				 * Change candidate field type to abstract and initialze all field that were not initialized upon
-				 * creation of the main class previously.
-				 */
-				updateFieldAssigments(distinctCandidateField.getValue(), abstractFqn);	
-				findAndInitializeUninitializedFields(mainClass, abstractFqn, nullNode);
 			}
 			
 			/*
-			 * Change vartype of fields similar to candidate field and their assignments to abstract class path.
-			 */
+			 * Change vartype of all fields with the previous type of the candidate node to the abstract type.
+			 */			
+		
 			ResourceIterator<Node> similarFields = dbService.findNodes(SDGLabel.FIELD, SDGPropertyKey.VARTYPE, candidateFqn);
+			List<Long> mainClassIds = new ArrayList<>();
+			
 			while (similarFields.hasNext()){
 				Node similarField = similarFields.next();
 				similarField.setProperty(SDGPropertyKey.VARTYPE, abstractFqn);
 				updateFieldAssigments(similarField, abstractFqn);
+				
+				/*
+				 * Add all mainClasses containing a candidate field to mainClass ids.
+				 */
+				Node mainClass = similarField.getSingleRelationship(RelTypes.CONTAINS_FIELD, Direction.INCOMING).getStartNode();
+				long mainClassId = mainClass.getId();
+				if (!mainClassIds.contains(mainClassId)){
+					mainClassIds.add(mainClassId);
+				}
 			}
 			similarFields.close();
 			
-				tx.success();
+			/*
+			 * Find uninitialized fields of type abstractFqn for every class in mainClassIds an initialize them.
+			 */
+			for (long id : mainClassIds){
+				Node mainClass = dbService.getNodeById(id);
+				findAndInitializeUninitializedFields(mainClass, id, abstractFqn, nullNode);
 			}
+			
+			//End of candidate Transaction
+			tx.success();
+		}
 			
 			System.out.println("Transformed candidate node: " + candidateFqn + " (" + candidateNode.toString() + ")");
 		}	
@@ -582,15 +598,16 @@ public class NullObjectTransformation {
 	 * Finds all fields of a vartype that are not initialized within the main class constructors and
 	 * initializes them with the null object.
 	 * @param mainClass
+	 * @param mainClassId
 	 * @param vartype
 	 * @param nullNode
 	 */
-	private void findAndInitializeUninitializedFields(Node mainClass, String vartype, Node nullNode){
+	private void findAndInitializeUninitializedFields(Node mainClass, long mainClassId, String vartype, Node nullNode){
 		
 		String uninitializedFieldQuery = ""
 				+ "MATCH (n:Field {vartype:'" + vartype + "'})<-[:CONTAINS_FIELD]-(main:Class)"
-				+ "WHERE id(main) = " + mainClass.getId() 
-					+ " AND NOT (n:Field)<-[:AGGREGATED_FIELD_WRITE]-(:Constructor)<-[:CONTAINS_CONSTRUCTOR]-(main)"
+				+ "WHERE id(main) = " + mainClassId 
+					+ " AND NOT (n)<-[:AGGREGATED_FIELD_WRITE]-(:Constructor)<-[:CONTAINS_CONSTRUCTOR]-(main)"
 				+ "RETURN n";
 				
 		Result result = dbService.execute(uninitializedFieldQuery);
@@ -865,7 +882,6 @@ public class NullObjectTransformation {
 			}
 		}
 			
-		//TODO: Debug NullPointerException on ant call
 		Relationship lastUnit = oldConstructor.getSingleRelationship(RelTypes.LAST_UNIT, Direction.INCOMING);
 		
 		if (lastUnit != null) {
@@ -1040,7 +1056,6 @@ public class NullObjectTransformation {
 		}
 		node.delete();
 	}
-	
 	
 	
 	/**
