@@ -2,17 +2,14 @@ package com.tnr.neo4j.java.nullobject.util.query;
 
 public class QueryPaths {
 	
-	public static String MATCH = "src" + dash() +
-			"com" + dash() +
-			"tnr" + dash() + 
-			"neo4j" + dash() + 
-			"java" + dash() +
-			"nullobject" + dash() +
-			"matching" + dash() +
-			"MATCH-Query.txt";
+	
+	private static String rawMatchQueryPath = "src/com/tnr/neo4j/java/nullobject/matching/MATCH-Query.txt";
+	private static String rawUninitializedFieldQueryPath = "src/com/tnr/neo4j/java/nullobject/transformation/uninitializedFieldQuery.txt";
+	private static String rawMethodQueryPath = "src/com/tnr/neo4j/java/nullobject/transformation/methodQuery.txt";
 	
 	
-	private static String dash(){
-		return System.getProperty("file.separator");
-	}
+	public static String matchQueryPath = rawMatchQueryPath.replace("/", System.getProperty("file.separator"));	
+	public static String uninitializedFieldQueryPath = rawUninitializedFieldQueryPath.replace("/", System.getProperty("file.separator"));
+	public static String methodQueryPath = rawMethodQueryPath.replace("/", System.getProperty("file.separator"));
+	
 }

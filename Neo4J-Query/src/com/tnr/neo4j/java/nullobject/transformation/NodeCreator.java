@@ -7,6 +7,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 
+import com.tnr.neo4j.java.nullobject.transformation.util.PropertyContainer;
 import com.tnr.neo4j.java.nullobject.util.Constants;
 import com.tnr.neo4j.java.nullobject.util.RelTypes;
 import com.tnr.neo4j.java.nullobject.util.SDGLabel;
@@ -16,36 +17,36 @@ import com.tnr.neo4j.java.nullobject.util.StringUtil;
 public class NodeCreator {
 
 	private GraphDatabaseService dbService;
-	Map<String,Object> candidateProperties;
+	private Map<String, Object> candidateProperties;
 	
-	String realPrefix;
-	String abstractPrefix;
-	String nullPrefix;
+	private String realPrefix;
+	private String abstractPrefix;
+	private String nullPrefix;
 	
-	String realFqn;
-	String nullFqn;
-	String abstractFqn;
+	private String realFqn;
+	private String nullFqn;
+	private String abstractFqn;
 	
-	
-	
-	public NodeCreator(GraphDatabaseService dbService, Map<String,Object> candidateProperties){
+	public NodeCreator(GraphDatabaseService dbService, PropertyContainer propertyContainer){
 		this.dbService = dbService;
-		this.candidateProperties = candidateProperties;
+		this.candidateProperties = propertyContainer.getCandidateProperties();
 		
-		realPrefix = Constants.realPrefix;
-		abstractPrefix = Constants.abstractPrefix;
-		nullPrefix = Constants.nullPrefix;
+		realPrefix = propertyContainer.getRealPrefix();
+		abstractPrefix = propertyContainer.getAbstractPrefix();
+		nullPrefix = propertyContainer.getNullPrefix();
 		
 		realFqn = StringUtil.addPrefixToClass(realPrefix, candidateProperties.get(SDGPropertyKey.FQN));
 		nullFqn = StringUtil.addPrefixToClass(nullPrefix, candidateProperties.get(SDGPropertyKey.FQN));	
 		abstractFqn = StringUtil.addPrefixToClass(abstractPrefix, candidateProperties.get(SDGPropertyKey.FQN));
 	}
 	
+	
 	/**
 	 * Create realNode.
 	 */
-	public Node createRealNode() {
+	public Node createRealNode(Node packageNode, Node candidateNode) {
 		
+		System.out.println("Creating " + realFqn + ".");
 		Node realNode = dbService.createNode(SDGLabel.CLASS);
 		realNode.setProperty(SDGPropertyKey.FQN, realFqn);
 		realNode.setProperty(SDGPropertyKey.DISPLAYNAME, realPrefix+candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
@@ -56,13 +57,18 @@ public class NodeCreator {
 		realNode.setProperty(SDGPropertyKey.ISABSTRACT, "false");
 		realNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");	
 		
+		realNode.createRelationshipTo(candidateNode, RelTypes.EXTENDS);
+		packageNode.createRelationshipTo(realNode, RelTypes.CONTAINS_TYPE);
+		
 		return realNode;
 	}
 	
 	/**
 	 * Create nullNode.
 	 */
-	public Node createNullNode() {
+	public Node createNullNode(Node packageNode, Node candidateNode) {
+		
+		System.out.println("Creating " + nullFqn + ".");
 		Node nullNode = dbService.createNode(SDGLabel.CLASS);
 		
 		nullNode.setProperty(SDGPropertyKey.FQN, nullFqn);
@@ -74,6 +80,9 @@ public class NodeCreator {
 		nullNode.setProperty(SDGPropertyKey.ISABSTRACT, "false");
 		nullNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
 		
+		nullNode.createRelationshipTo(candidateNode, RelTypes.EXTENDS);
+		packageNode.createRelationshipTo(nullNode, RelTypes.CONTAINS_TYPE);
+		
 		return nullNode;
 	}
 	
@@ -81,6 +90,8 @@ public class NodeCreator {
 	 * Change node to abstractNode and update candidate vartype.
 	 */
 	public void createAbstractNode (Node candidateNode) {
+		
+		System.out.println("Creating " + abstractFqn + ".");
 		candidateNode.setProperty(SDGPropertyKey.FQN, abstractFqn);
 		candidateNode.setProperty(SDGPropertyKey.DISPLAYNAME, abstractPrefix + candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
 		candidateNode.setProperty(SDGPropertyKey.NAME, abstractPrefix + candidateProperties.get(SDGPropertyKey.NAME));
@@ -102,27 +113,27 @@ public class NodeCreator {
 		// TODO: multiple (overloaded) constructors.
 		Node nullConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
 		Node realConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
-		ConstructorControlFlowTransformer cflowhandler = new ConstructorControlFlowTransformer(dbService);
+		ConstructorControlFlowTransformer cflowtransformer = new ConstructorControlFlowTransformer(dbService);
 		
 		Iterable<Relationship> classOutRels = abstractNode.getRelationships(RelTypes.CONTAINS_CONSTRUCTOR, Direction.OUTGOING);
 		for (Relationship rel : classOutRels){
 			Node constructorNode = rel.getEndNode();
 			
 			//Transfer old constructor calls to the new constructor for the real node.
-			cflowhandler.transferConstructorCalls(constructorNode, realConstructorNode, realFqn);
+			cflowtransformer.transferConstructorCalls(constructorNode, realConstructorNode, realFqn);
 			
 			//Transfer old constructor control flow to real constructor.
-			cflowhandler.transferConstructorFlow(constructorNode, realConstructorNode, realFqn);
+			cflowtransformer.transferConstructorFlow(constructorNode, realConstructorNode, realFqn);
 			
 			realNode.createRelationshipTo(realConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
 			
-			cflowhandler.createConstructorFlow(constructorNode, nullConstructorNode, nullFqn);
+			cflowtransformer.createConstructorFlow(constructorNode, nullConstructorNode, nullFqn);
 			nullNode.createRelationshipTo(nullConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
 			
 			Relationship superCall = constructorNode.getSingleRelationship(RelTypes.AGGREGATED_CALLS, Direction.OUTGOING);
 			Node superConstructor = superCall.getEndNode();
 			superCall.delete();
-			cflowhandler.createConstructorFlow(superConstructor, constructorNode, abstractFqn);
+			cflowtransformer.createConstructorFlow(superConstructor, constructorNode, abstractFqn);
 
 			break;
 		}

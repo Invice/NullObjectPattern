@@ -37,7 +37,7 @@ public class Matcher {
 		/*
 		 * Find candidates using the Cypher Match Query
 		 */
-		Result queryResult =  dbService.execute(QueryReader.readQuery(QueryPaths.MATCH));
+		Result queryResult =  dbService.execute(QueryReader.readQuery(QueryPaths.matchQueryPath));
 		/*
 		 * Collect distinct candidates and theirs assignments within if conditions
 		 */
