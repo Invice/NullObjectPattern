@@ -8,17 +8,16 @@ import java.util.Map;
 
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.graphdb.schema.Schema;
 
+import com.tnr.neo4j.java.nullobject.index.Indexer;
 import com.tnr.neo4j.java.nullobject.matching.Matcher;
+import com.tnr.neo4j.java.nullobject.transformation.NodeCreator;
 import com.tnr.neo4j.java.nullobject.util.Constants;
 import com.tnr.neo4j.java.nullobject.util.RelTypes;
 import com.tnr.neo4j.java.nullobject.util.SDGLabel;
@@ -39,21 +38,12 @@ import com.tnr.neo4j.java.nullobject.util.StringUtil;
  * @author Tim-Niklas Reck
  *
  */
-public class NullObjectTransformation {
+public class NullObjectTransformation implements Transformation {
 	
 	/**
 	 * The Neo4J DatabaseService that is managing our current database.
 	 */
 	private final GraphDatabaseService dbService;
-	
-	/**
-	 * Used by method createIndexes().
-	 */
-	private Iterable<IndexDefinition> indexes;
-	/**
-	 * Used by method createIndexes().
-	 */
-	private Schema schema = null;
 	
 	/**
 	 * Used by transforming and matching methods.
@@ -80,58 +70,21 @@ public class NullObjectTransformation {
 	 * Creates necessary indexes, if they don't already exist.
 	 */
 	public void createIndexes() {
-		try (Transaction tx = dbService.beginTx()){
-			if (schema == null){
-				schema = dbService.schema();
-			}
-			indexes = schema.getIndexes();
-			tx.success();
-		}
-		createIndex(SDGPropertyValues.TYPE_FIELD, SDGPropertyKey.ISFINAL);
-		createIndex(SDGPropertyValues.TYPE_CONDITION, SDGPropertyKey.OPERATION);
-		createIndex(SDGPropertyValues.TYPE_NOPSTMT, SDGPropertyKey.NOPKIND);
-		createIndex(SDGPropertyValues.TYPE_CLASS, SDGPropertyKey.FQN);
-		createIndex(SDGPropertyValues.TYPE_PACKAGE, SDGPropertyKey.NAME);
-	}
-	
-	/**
-	 * Called by createIndexes().
-	 * @param label
-	 * @param property
-	 */
-	private void createIndex(String label, String property){
-		boolean indexed = false;
+		Indexer index = new Indexer(dbService);
 		
-		try(Transaction tx = dbService.beginTx()){
-			for (IndexDefinition def : indexes){
-				indexed = indexed || (def.getLabel().name().equals(label));
-			}
-			if (!indexed) {
-					schema.indexFor(Label.label(label)).on(property).create();
-			}
-			tx.success();
-		}
+		index.createUniqueIndex(SDGPropertyValues.TYPE_FIELD, SDGPropertyKey.ISFINAL);
+		index.createUniqueIndex(SDGPropertyValues.TYPE_CONDITION, SDGPropertyKey.OPERATION);
+		index.createUniqueIndex(SDGPropertyValues.TYPE_NOPSTMT, SDGPropertyKey.NOPKIND);
+		index.createUniqueIndex(SDGPropertyValues.TYPE_CLASS, SDGPropertyKey.FQN);
+		index.createUniqueIndex(SDGPropertyValues.TYPE_PACKAGE, SDGPropertyKey.NAME);
 	}
-	
+			
 	/**
 	 * Prints the existing indexes to console.
 	 */
-	public void getIndexes() {
-		try (Transaction tx = dbService.beginTx()){
-			if (schema == null){
-				schema = dbService.schema();
-			}
-			Iterable<IndexDefinition> indexes = schema.getIndexes();
-			
-			for (IndexDefinition def : indexes) {
-				System.out.print(":"+def.getLabel());
-				for (String key : def.getPropertyKeys()){
-					System.out.print("(" + key +")");
-				}
-				System.out.println();
-			}
-			tx.success();
-		} 
+	public void printIndexes() {
+		Indexer indexer = new Indexer(dbService);
+		indexer.printIndexes();
 	}
 	
 	/**
@@ -151,19 +104,14 @@ public class NullObjectTransformation {
 	/**
 	 * Transforms the graphDb using candidates obtained with match().
 	 */
-	public void transform2nullObject(){
+	public void transform(){
 		
 		long startTime = System.currentTimeMillis();
 		
 		/*
 		 * This method must be called after matching.
 		 */
-		if (!hasMatchedCandidate) {
-			System.out.println("Call match() before calling transform().");
-			return;
-		} else {
-			System.out.println("Started transforming ...");
-		}
+		isMatched();
 		
 		/*
 		 * Transform each candidate individually.
@@ -180,61 +128,38 @@ public class NullObjectTransformation {
 				tx.success();
 			}
 			
-			
-			/*
-			 * Set default name prefixes for new classes.
-			 */
-			String realPrefix = "Real";
-			String abstractPrefix = "Abstract";
-			String nullPrefix = "Null";
 			String candidateFqn = "";
+			Constants.resetPrefixes();
 			
 			/*
 			 * Create new real, null and abstract node for candidate.
 			 */
 			try (Transaction tx = dbService.beginTx()){
 				
+				
 				Map<String,Object> candidateProperties = candidateNode.getAllProperties();
 				final long candidateId = candidateNode.getId();
 				candidateFqn = (String) candidateProperties.get(SDGPropertyKey.FQN);
-				
+				NodeCreator nodeCreator = new NodeCreator(dbService, candidateProperties);
 				/*
 				 * Create new class paths for each node.
 				 */
-				final String realFqn = StringUtil.addPrefixToClass(realPrefix, candidateProperties.get(SDGPropertyKey.FQN));
-				final String nullFqn = StringUtil.addPrefixToClass(nullPrefix, candidateProperties.get(SDGPropertyKey.FQN));
-				final String abstractFqn = StringUtil.addPrefixToClass(abstractPrefix, candidateProperties.get(SDGPropertyKey.FQN));
+				final String realFqn = StringUtil.addPrefixToClass(Constants.realPrefix, candidateProperties.get(SDGPropertyKey.FQN));
+				final String nullFqn = StringUtil.addPrefixToClass(Constants.nullPrefix, candidateProperties.get(SDGPropertyKey.FQN));
+				final String abstractFqn = StringUtil.addPrefixToClass(Constants.abstractPrefix, candidateProperties.get(SDGPropertyKey.FQN));
 				
 				/*
 				 * Create realNode and relationships
 				 */
-				Node realNode = dbService.createNode(SDGLabel.CLASS);
-				realNode.setProperty(SDGPropertyKey.FQN, realFqn);
-				realNode.setProperty(SDGPropertyKey.DISPLAYNAME, realPrefix+candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
-				realNode.setProperty(SDGPropertyKey.NAME, realPrefix+candidateProperties.get(SDGPropertyKey.NAME));
-				realNode.setProperty(SDGPropertyKey.VISIBILITY, candidateProperties.get(SDGPropertyKey.VISIBILITY));
-				realNode.setProperty(SDGPropertyKey.ORIGIN, candidateProperties.get(SDGPropertyKey.ORIGIN));
-				realNode.setProperty(SDGPropertyKey.TYPE, candidateProperties.get(SDGPropertyKey.TYPE));
-				realNode.setProperty(SDGPropertyKey.ISABSTRACT, "false");
-				realNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
-				
-				/*Relationship relationship = */
+				Node realNode = nodeCreator.createRealNode();
 				realNode.createRelationshipTo(candidateNode, RelTypes.EXTENDS);
 				packageNode.createRelationshipTo(realNode, RelTypes.CONTAINS_TYPE);
+				
 				
 				/*
 				 * Create nullNode and relationships
 				 */
-				Node nullNode = dbService.createNode(SDGLabel.CLASS);
-				nullNode.setProperty(SDGPropertyKey.FQN, nullFqn);
-				nullNode.setProperty(SDGPropertyKey.DISPLAYNAME, nullPrefix+candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
-				nullNode.setProperty(SDGPropertyKey.NAME, nullPrefix+candidateProperties.get(SDGPropertyKey.NAME));
-				nullNode.setProperty(SDGPropertyKey.VISIBILITY, candidateProperties.get(SDGPropertyKey.VISIBILITY));
-				nullNode.setProperty(SDGPropertyKey.ORIGIN, candidateProperties.get(SDGPropertyKey.ORIGIN));
-				nullNode.setProperty(SDGPropertyKey.TYPE, candidateProperties.get(SDGPropertyKey.TYPE));
-				nullNode.setProperty(SDGPropertyKey.ISABSTRACT, "false");
-				nullNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
-				
+				Node nullNode = nodeCreator.createNullNode();
 				nullNode.createRelationshipTo(candidateNode, RelTypes.EXTENDS);
 				packageNode.createRelationshipTo(nullNode, RelTypes.CONTAINS_TYPE);
 				
@@ -242,43 +167,14 @@ public class NullObjectTransformation {
 				/*
 				 * Change node to abstractNode and update candidate vartype.
 				 */
-				candidateNode.setProperty(SDGPropertyKey.FQN, abstractFqn);
-				candidateNode.setProperty(SDGPropertyKey.DISPLAYNAME, abstractPrefix + candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
-				candidateNode.setProperty(SDGPropertyKey.NAME, abstractPrefix + candidateProperties.get(SDGPropertyKey.NAME));
-				candidateNode.setProperty(SDGPropertyKey.VARTYPE, abstractFqn);
-				candidateNode.setProperty(SDGPropertyKey.ISABSTRACT, "true");
-				candidateNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
+				nodeCreator.createAbstractNode(candidateNode);
 				
 				/*
-				 * Create new constructors for nullNode and realNode.
+				 * Create new constructors for nullNode and realNode and update controlflow of all nodes.
 				 */
-				// TODO: multiple (overloaded) constructors.
+				nodeCreator.createConstructors(candidateNode, realNode, nullNode);
 			
-				Node nullConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
-				Node realConstructorNode = dbService.createNode(SDGLabel.CONSTRUCTOR);
 				
-				Iterable<Relationship> classOutRels = candidateNode.getRelationships(RelTypes.CONTAINS_CONSTRUCTOR, Direction.OUTGOING);
-				for (Relationship rel : classOutRels){
-					Node constructorNode = rel.getEndNode();
-					
-					//Transfer old constructor calls to the new constructor for the real node.
-					transferConstructorCalls(constructorNode, realConstructorNode, realFqn);
-					
-					//Transfer old constructor control flow to real constructor.
-					transferConstructorFlow(constructorNode, realConstructorNode, realFqn);
-					
-					realNode.createRelationshipTo(realConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
-					
-					createConstructorFlow(constructorNode, nullConstructorNode, nullFqn);
-					nullNode.createRelationshipTo(nullConstructorNode, RelTypes.CONTAINS_CONSTRUCTOR);
-					
-					Relationship superCall = constructorNode.getSingleRelationship(RelTypes.AGGREGATED_CALLS, Direction.OUTGOING);
-					Node superConstructor = superCall.getEndNode();
-					superCall.delete();
-					createConstructorFlow(superConstructor, constructorNode, abstractFqn);
-
-					break;
-				}
 				
 				/*
 				 * Create new methods and change alignments.
@@ -726,166 +622,11 @@ public class NullObjectTransformation {
 		thisNode.setProperty(SDGPropertyKey.DISPLAYNAME, "this = " + rightValue);
 	}
 	
-	/**
-	 * Creates the controlFlow for a new constructor using the super constructor.
-	 * This method is to be used inside the transaction of the transform() method of this class.
-	 * @param superConstructor the super constructor to call (default should be Object)
-	 * @param newConstructor the new constructor
-	 * @return
-	 */
-	private void createConstructorFlow (Node superConstructor, Node newConstructor, String classFqn){
-		
-			Map<String, Object> superConstructorProperties = superConstructor.getAllProperties();
-			Node ctorNode = newConstructor;
-			Node thisNode = dbService.createNode(SDGLabel.ASSIGNMENT);
-			Node superNode = dbService.createNode(SDGLabel.CONSTRUCTORCALL);
-			Node returnNode = dbService.createNode(SDGLabel.RETURNSTMT);
-			
-			ctorNode.createRelationshipTo(superConstructor, RelTypes.AGGREGATED_CALLS);
-			ctorNode.createRelationshipTo(thisNode, RelTypes.CONTAINS_UNIT);
-			ctorNode.createRelationshipTo(thisNode, RelTypes.CONTROL_FLOW);
-			
-			thisNode.createRelationshipTo(superNode, RelTypes.DATA_FLOW);
-			thisNode.createRelationshipTo(superNode, RelTypes.CONTROL_FLOW);
-			
-			superNode.createRelationshipTo(superConstructor, RelTypes.CALLS);
-			superNode.createRelationshipTo(returnNode, RelTypes.CONTROL_FLOW);
-			
-			returnNode.createRelationshipTo(ctorNode, RelTypes.LAST_UNIT);
-			
-			for(String key : superConstructorProperties.keySet()){
-				if (!key.equals(SDGPropertyKey.FQN)){
-					ctorNode.setProperty(key, superConstructorProperties.get(key));
-				} else {
-					ctorNode.setProperty(SDGPropertyKey.FQN, classFqn + ".<init>()");
-				}
-			}
-			
-			thisNode.setProperty(SDGPropertyKey.VARTYPE, classFqn);
-			thisNode.setProperty(SDGPropertyKey.VAR, "this");
-			String rightValue = "@this: " + classFqn;
-			thisNode.setProperty(SDGPropertyKey.DISPLAYNAME, "this = " + rightValue);
-			thisNode.setProperty(SDGPropertyKey.RIGHTVALUE, rightValue);
-			thisNode.setProperty(SDGPropertyKey.LINENUMBER, 3);
-			thisNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_ASSIGNMENT);
-			thisNode.setProperty(SDGPropertyKey.OPERATION, "thisdeclaration");
-			
-			// TODO: Create option for constructor with arguments
-			
-			int parameterscount = (int)superConstructorProperties.get(SDGPropertyKey.PARAMETERSCOUNT);
-			String[] superArgs = new String[parameterscount];
-			for (int i = 0; i < parameterscount; i++){
-				superArgs[i] = "arg" + i;
-			}
-			
-			
-			superNode.setProperty(SDGPropertyKey.ARGS, superArgs);
-			superNode.setProperty(SDGPropertyKey.CALLER, "this");
-			superNode.setProperty(SDGPropertyKey.FQN, superConstructorProperties.get(SDGPropertyKey.FQN));
-			superNode.setProperty(SDGPropertyKey.ARGUMENTSCOUNT, superConstructorProperties.get(SDGPropertyKey.PARAMETERSCOUNT));
-			superNode.setProperty(SDGPropertyKey.DISPLAYNAME, "<init>()");
-			superNode.setProperty(SDGPropertyKey.RETURNTYPE, "void");
-			superNode.setProperty(SDGPropertyKey.NAME, "super");
-			superNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_CONSTRUCTORCALL);
-			
-			returnNode.setProperty(SDGPropertyKey.DISPLAYNAME, "return");
-			returnNode.setProperty(SDGPropertyKey.TYPE, SDGPropertyValues.TYPE_RETURNSTMT);
-	}
 	
-	/**
-	 * Transfers the calls and aggregated calls of a constructor to another constructor while updating the contained nodes.
-	 * This method is to be used inside the transaction of the transform() method of this class.
-	 * @param oldConstructor
-	 * @param newConstrutctor
-	 * @param newFqn the fqn of the new constructor.
-	 */
-	private void transferConstructorCalls (Node oldConstructor, Node newConstrutctor, String newFqn){
-		
-		Iterable<Relationship> constructorInRels = oldConstructor.getRelationships(Direction.INCOMING);
-		for (Relationship constructorRel: constructorInRels){
-			if (constructorRel.isType(RelTypes.AGGREGATED_CALLS)){
-				constructorRel.getStartNode().createRelationshipTo(newConstrutctor, constructorRel.getType());
-				constructorRel.delete();
-			} else if (constructorRel.isType(RelTypes.CALLS)) {
-				Node startNode = constructorRel.getStartNode();
-				
-				startNode.setProperty(SDGPropertyKey.FQN, newFqn + ".<init>()");
-				
-				Node newAssignNode = startNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.INCOMING).getStartNode();
-				
-				newAssignNode.setProperty(SDGPropertyKey.VARTYPE, newFqn);
-				String rightValue = "new " + newFqn;
-				newAssignNode.setProperty(SDGPropertyKey.RIGHTVALUE, rightValue);
-				newAssignNode.setProperty(SDGPropertyKey.DISPLAYNAME, newAssignNode.getProperty(SDGPropertyKey.VAR) + " = " + rightValue);
-				
-				startNode.createRelationshipTo(newConstrutctor, constructorRel.getType());
-				constructorRel.delete();
-			}
-		}
-	}
 	
-	/**
-	 * Transfers the controlflow of a constructor to another constructor while updating the contained nodes.
-	 * This method is to be used inside the transaction of the transform() method of this class.
-	 * @param oldConstructor
-	 * @param newConstructor
-	 * @param newFqn the fqn of the new constructor.
-	 */
-	private void transferConstructorFlow(Node oldConstructor, Node newConstructor, String newFqn){
-		
-		if (oldConstructor.getProperty(SDGPropertyKey.ISABSTRACT).toString().equals(SDGPropertyValues.TRUE)){
-			return;
-		}
-		
-		Map<String, Object> oldConstructorProperties = oldConstructor.getAllProperties();
-		
-		for(String key : oldConstructorProperties.keySet()){
-			if (!key.equals(SDGPropertyKey.FQN)){
-				newConstructor.setProperty(key, oldConstructorProperties.get(key));
-			} else {
-				newConstructor.setProperty(SDGPropertyKey.FQN, newFqn + ".<init>()");
-			}
-		}
-			
-		Relationship lastUnit = oldConstructor.getSingleRelationship(RelTypes.LAST_UNIT, Direction.INCOMING);
-		
-		if (lastUnit != null) {
-			lastUnit.getStartNode().createRelationshipTo(newConstructor, RelTypes.LAST_UNIT);
-			lastUnit.delete();
-		}
-		
-		
-		
-		Relationship controlFlow = oldConstructor.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING);
-		Relationship containsUnit = oldConstructor.getSingleRelationship(RelTypes.CONTAINS_UNIT, Direction.OUTGOING);
-				
-		Node thisNode = controlFlow.getEndNode();
-		
-		newConstructor.createRelationshipTo(thisNode, RelTypes.CONTROL_FLOW);
-		newConstructor.createRelationshipTo(thisNode, RelTypes.CONTAINS_UNIT);
-		updateThisAssignmentNode(thisNode, newFqn);
-		
-		
-		controlFlow.delete();
-		containsUnit.delete();
-		
-		Node superNode = thisNode.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING).getEndNode();
-		superNode.setProperty(SDGPropertyKey.FQN, oldConstructor.getProperty(SDGPropertyKey.FQN));
-		superNode.setProperty(SDGPropertyKey.ARGUMENTSCOUNT, oldConstructor.getProperty(SDGPropertyKey.PARAMETERSCOUNT));
-		superNode.getSingleRelationship(RelTypes.CALLS, Direction.OUTGOING).delete();
-		superNode.createRelationshipTo(oldConstructor, RelTypes.CALLS);
-		
-
-		
-		
-		Iterable<Relationship> fieldWrites = oldConstructor.getRelationships(RelTypes.AGGREGATED_FIELD_WRITE);
-		for (Relationship fieldWrite : fieldWrites){
-			newConstructor.createRelationshipTo(fieldWrite.getEndNode(), RelTypes.AGGREGATED_FIELD_WRITE);
-			fieldWrite.delete();
-		}
-		
-		newConstructor.createRelationshipTo(oldConstructor, RelTypes.AGGREGATED_CALLS);
-	}
+	
+	
+	
 	
 	
 	/**
@@ -1037,5 +778,19 @@ public class NullObjectTransformation {
 			tx.success();
 		}
 	}
+	
+	
+	/**
+	 * Check if match() has been called. This is necessary for transformation methods.
+	 */
+	private void isMatched(){
+		if (!hasMatchedCandidate) {
+			System.out.println("Call match() before calling transform().");
+			return;
+		} else {
+			System.out.println("Started transforming ...");
+		}
+	}
+	
 		
 }

@@ -5,12 +5,12 @@ import com.tnr.neo4j.java.nullobject.util.Constants;
 public class Main {
 	
 	public static void main(String[] args) {
-		NullObjectTransformation test = new NullObjectTransformation(
+		Transformation test = new NullObjectTransformation(
 				Constants.GraphDatabaseLocation, 
 				Constants.cacheDB);
 		test.createIndexes();
-//		test.getIndexes();
+//		test.printIndexes();
 		test.match();
-//		test.transform2nullObject();
+		test.transform();
 	}
 }

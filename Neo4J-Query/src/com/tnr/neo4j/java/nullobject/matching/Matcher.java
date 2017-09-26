@@ -8,7 +8,6 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 
-import com.tnr.neo4j.java.nullobject.util.Constants;
 import com.tnr.neo4j.java.nullobject.util.query.QueryPaths;
 import com.tnr.neo4j.java.nullobject.util.query.QueryReader;
 
@@ -52,7 +51,9 @@ public class Matcher {
 			tx.success();
 		}
 		
-		System.out.println("Found [" + distinctCandidates.size() + "] candidates with [" + distinctCandidateFields.size() + "] candidate fields and [" + distinctConditionAssignments.size() + "] assignments.");
+		System.out.println("Found [" + distinctCandidates.size() + "] "
+				+ "candidates with [" + distinctCandidateFields.size() + "] candidate fields"
+						+ " and [" + distinctConditionAssignments.size() + "] assignments.");
 		System.out.println("Finished matching after " + (System.currentTimeMillis() - startTime) + "ms.\n");
 		
 		return hasMatched;
