@@ -18,6 +18,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
 
+import com.tnr.neo4j.java.nullobject.matching.Matcher;
 import com.tnr.neo4j.java.nullobject.util.Constants;
 import com.tnr.neo4j.java.nullobject.util.RelTypes;
 import com.tnr.neo4j.java.nullobject.util.SDGLabel;

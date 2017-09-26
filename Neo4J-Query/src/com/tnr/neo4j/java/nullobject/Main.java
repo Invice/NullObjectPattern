@@ -9,7 +9,7 @@ public class Main {
 				Constants.GraphDatabaseLocation, 
 				Constants.cacheDB);
 		test.createIndexes();
-		test.getIndexes();
+//		test.getIndexes();
 		test.match();
 //		test.transform2nullObject();
 	}

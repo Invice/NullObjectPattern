@@ -1,0 +1,9 @@
+MATCH (mainClass:Class)-[:CONTAINS_FIELD]->(candidateField:Field {isfinal:false})<-[:AGGREGATED_FIELD_READ]-(method:Method)
+	USING INDEX candidateField:Field(isfinal)
+MATCH (candidateField)-[:DATA_FLOW]->(condVariable:Assignment)-[:DATA_FLOW]->(condition:Condition {operation:"!="})
+	WHERE condition.operand1 = "null" OR condition.operand2 = "null"
+MATCH (condVariable)<-[:CONTROL_FLOW]-(ifStmt:NopStmt)  
+	WHERE ifStmt.nopkind = "IF_COND" OR ifStmt.nopkind = "IF_COND_X" OR (ifStmt) <-[:CONTROL_FLOW]- (:Condition)
+MATCH (candidate:Class)
+	WHERE candidate.fqn = candidateField.vartype AND candidate.isabstract = false
+RETURN DISTINCT candidateField, condVariable, candidate
