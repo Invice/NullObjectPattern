@@ -57,7 +57,7 @@ public class NullObjectTransformation {
 	/**
 	 * Used by transforming and matching methods.
 	 */
-	private boolean hasMatched = false;
+	private boolean hasMatchedCandidate = false;
 	
 	/**
 	 * Used by transforming and matching methods.
@@ -138,49 +138,13 @@ public class NullObjectTransformation {
 	 */
 	public void match() {
 		
-		System.out.println("Started matching ...");
-		long startTime = System.currentTimeMillis();
-		/*
-		 * Find candidates using the Cypher Match Query
-		 */
-		Result queryResult =  dbService.execute(Constants.MATCH_QUERY);
-		/*
-		 * Collect distinct candidates and theirs assignments within if conditions
-		 */
-		distinctCandidateFields = new HashMap<>();
-		distinctConditionAssignments = new HashMap<>();
+		Matcher matcher = new Matcher();
 		
-		while(queryResult.hasNext()){
-			Map<String,Object> result = queryResult.next();
-			
-			Node fieldNode = (Node) result.get("candidateField");
-			Node assignmentNode = (Node) result.get("condVariable");
-			Node candidateNode = (Node) result.get("candidate");
-			
-			try (Transaction tx = dbService.beginTx()){
-				String fieldId = String.valueOf(fieldNode.getId());
-				String assignmentId = String.valueOf(assignmentNode.getId());
-				String candidateId = String.valueOf(candidateNode.getId());
-				
-				if (!distinctCandidateFields.containsKey(fieldId)){
-					distinctCandidateFields.put(fieldId, fieldNode);
-				}
-				if (!distinctConditionAssignments.containsKey(assignmentId)){
-					distinctConditionAssignments.put(assignmentId, assignmentNode);
-				}
-				if (!distinctCandidates.containsKey(candidateId)){
-					distinctCandidates.put(candidateId, candidateNode);
-				}
-				
-				tx.success();
-			}
-		}
-		queryResult.close();	
-			
-		hasMatched = true;
+		hasMatchedCandidate = matcher.match(dbService);
 		
-		System.out.println("Finished matching. Found [" + distinctCandidateFields.size() + "] candidate fields with [" + distinctConditionAssignments.size() + "] assignments.");
-		System.out.println("Time spent matching: " + (System.currentTimeMillis() - startTime) + "ms\n");
+		distinctCandidateFields = matcher.getDistinctCandidateFields();
+		distinctConditionAssignments = matcher.getDistinctConditionAssignments();
+		distinctCandidates = matcher.getDistinctCandidates();
 	}
 	
 	/**
@@ -193,7 +157,7 @@ public class NullObjectTransformation {
 		/*
 		 * This method must be called after matching.
 		 */
-		if (!hasMatched) {
+		if (!hasMatchedCandidate) {
 			System.out.println("Call match() before calling transform().");
 			return;
 		} else {
