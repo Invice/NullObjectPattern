@@ -133,22 +133,8 @@ public class ConstructorControlFlowTransformer {
 			return;
 		}
 		
-		Map<String, Object> oldConstructorProperties = oldConstructor.getAllProperties();
+		initNewConstructor(oldConstructor, newConstructor, newFqn);
 		
-		for(String key : oldConstructorProperties.keySet()){
-			if (!key.equals(SDGPropertyKey.FQN)){
-				newConstructor.setProperty(key, oldConstructorProperties.get(key));
-			} else {
-				newConstructor.setProperty(SDGPropertyKey.FQN, newFqn + ".<init>()");
-			}
-		}
-			
-		Relationship lastUnit = oldConstructor.getSingleRelationship(RelTypes.LAST_UNIT, Direction.INCOMING);
-		
-		if (lastUnit != null) {
-			lastUnit.getStartNode().createRelationshipTo(newConstructor, RelTypes.LAST_UNIT);
-			lastUnit.delete();
-		}
 		
 		Relationship controlFlow = oldConstructor.getSingleRelationship(RelTypes.CONTROL_FLOW, Direction.OUTGOING);
 		Relationship containsUnit = oldConstructor.getSingleRelationship(RelTypes.CONTAINS_UNIT, Direction.OUTGOING);
@@ -175,6 +161,34 @@ public class ConstructorControlFlowTransformer {
 		}
 		
 		newConstructor.createRelationshipTo(oldConstructor, RelTypes.AGGREGATED_CALLS);
+	}
+	
+	
+	/**
+	 * Copies all properties of the old constructor and insert them to the new constructor.
+	 * Afterwards this updates the fqn of the new constructor transfers the last unit to the
+	 * new constructor.
+	 * @param oldConstructor
+	 * @param newConstructor
+	 * @param newFqn
+	 */
+	private void initNewConstructor(Node oldConstructor, Node newConstructor, String newFqn){
+		Map<String, Object> oldConstructorProperties = oldConstructor.getAllProperties();
+		
+		for(String key : oldConstructorProperties.keySet()){
+			if (!key.equals(SDGPropertyKey.FQN)){
+				newConstructor.setProperty(key, oldConstructorProperties.get(key));
+			} else {
+				newConstructor.setProperty(SDGPropertyKey.FQN, newFqn + ".<init>()");
+			}
+		}
+		
+		Relationship lastUnit = oldConstructor.getSingleRelationship(RelTypes.LAST_UNIT, Direction.INCOMING);
+		
+		if (lastUnit != null) {
+			lastUnit.getStartNode().createRelationshipTo(newConstructor, RelTypes.LAST_UNIT);
+			lastUnit.delete();
+		}
 	}
 	
 	/**

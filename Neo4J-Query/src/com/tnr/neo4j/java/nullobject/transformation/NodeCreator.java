@@ -49,8 +49,8 @@ public class NodeCreator {
 		System.out.println("Creating " + realFqn + ".");
 		Node realNode = dbService.createNode(SDGLabel.CLASS);
 		realNode.setProperty(SDGPropertyKey.FQN, realFqn);
-		realNode.setProperty(SDGPropertyKey.DISPLAYNAME, realPrefix+candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
-		realNode.setProperty(SDGPropertyKey.NAME, realPrefix+candidateProperties.get(SDGPropertyKey.NAME));
+		realNode.setProperty(SDGPropertyKey.DISPLAYNAME, realPrefix + candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
+		realNode.setProperty(SDGPropertyKey.NAME, realPrefix + candidateProperties.get(SDGPropertyKey.NAME));
 		realNode.setProperty(SDGPropertyKey.VISIBILITY, candidateProperties.get(SDGPropertyKey.VISIBILITY));
 		realNode.setProperty(SDGPropertyKey.ORIGIN, candidateProperties.get(SDGPropertyKey.ORIGIN));
 		realNode.setProperty(SDGPropertyKey.TYPE, candidateProperties.get(SDGPropertyKey.TYPE));
@@ -72,8 +72,8 @@ public class NodeCreator {
 		Node nullNode = dbService.createNode(SDGLabel.CLASS);
 		
 		nullNode.setProperty(SDGPropertyKey.FQN, nullFqn);
-		nullNode.setProperty(SDGPropertyKey.DISPLAYNAME, nullPrefix+candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
-		nullNode.setProperty(SDGPropertyKey.NAME, nullPrefix+candidateProperties.get(SDGPropertyKey.NAME));
+		nullNode.setProperty(SDGPropertyKey.DISPLAYNAME, nullPrefix + candidateProperties.get(SDGPropertyKey.DISPLAYNAME));
+		nullNode.setProperty(SDGPropertyKey.NAME, nullPrefix + candidateProperties.get(SDGPropertyKey.NAME));
 		nullNode.setProperty(SDGPropertyKey.VISIBILITY, candidateProperties.get(SDGPropertyKey.VISIBILITY));
 		nullNode.setProperty(SDGPropertyKey.ORIGIN, candidateProperties.get(SDGPropertyKey.ORIGIN));
 		nullNode.setProperty(SDGPropertyKey.TYPE, candidateProperties.get(SDGPropertyKey.TYPE));
@@ -89,7 +89,7 @@ public class NodeCreator {
 	/**
 	 * Change node to abstractNode and update candidate vartype.
 	 */
-	public void createAbstractNode (Node candidateNode) {
+	public Node transformAbstractNode (Node candidateNode) {
 		
 		System.out.println("Creating " + abstractFqn + ".");
 		candidateNode.setProperty(SDGPropertyKey.FQN, abstractFqn);
@@ -98,6 +98,8 @@ public class NodeCreator {
 		candidateNode.setProperty(SDGPropertyKey.VARTYPE, abstractFqn);
 		candidateNode.setProperty(SDGPropertyKey.ISABSTRACT, "true");
 		candidateNode.setProperty(SDGPropertyKey.TRANSFORMED, "true");
+		
+		return candidateNode;
 	}
 	
 	/**

@@ -20,6 +20,9 @@ import com.tnr.neo4j.java.nullobject.util.StringUtil;
 import com.tnr.neo4j.java.nullobject.util.query.QueryPaths;
 import com.tnr.neo4j.java.nullobject.util.query.QueryReader;
 
+/**
+ * "Jesse... let it go... we need to cook." - WW
+ */
 public class MethodTransformer {
 	
 	private GraphDatabaseService dbService;

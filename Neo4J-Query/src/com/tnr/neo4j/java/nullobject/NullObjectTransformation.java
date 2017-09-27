@@ -37,7 +37,7 @@ import com.tnr.neo4j.java.nullobject.util.query.QueryReader;
  *	2. match() 
  * 	3. transform()
  * 
- *	To check the indexes call getIndexes() after creating them.
+ *	To check the indexes call printIndexes() after creating them.
  * 
  * @author Tim-Niklas Reck
  *
@@ -87,8 +87,8 @@ public class NullObjectTransformation implements Transformation {
 	 * Prints the existing indexes to console.
 	 */
 	public void printIndexes() {
-		Indexer indexer = new Indexer(dbService);
-		indexer.printIndexes();
+		Indexer index = new Indexer(dbService);
+		index.printIndexes();
 	}
 	
 	/**
@@ -112,157 +112,142 @@ public class NullObjectTransformation implements Transformation {
 		
 		long startTime = System.currentTimeMillis();
 		
-		/*
-		 * This method must be called after matching.
-		 */
-		isMatched();
+		// This method must be called after matching.
+		checkIsMatched();
 		
-		/*
-		 * Transform each candidate individually.
-		 */
-		
+		// Transform each candidate individually.
 		// TODO: Check uniqueness of class prefixes.
 		for (Map.Entry<String, Node> candidate : distinctCandidates.entrySet()){
 			
-			
+			String candidateFqn = "";
 			Node candidateNode = candidate.getValue();
 			Node packageNode = null;
-			try (Transaction tx = dbService.beginTx()){
-				packageNode = candidateNode.getSingleRelationship(RelTypes.CONTAINS_TYPE, Direction.INCOMING).getStartNode();
-				tx.success();
-			}
 			
-			String candidateFqn = "";
-			
-			/*
-			 * Create new real, null and abstract node for candidate.
-			 */
 			try (Transaction tx = dbService.beginTx()){
+				
+				packageNode = candidateNode.getSingleRelationship(
+						RelTypes.CONTAINS_TYPE, 
+						Direction.INCOMING)
+						.getStartNode();
 				
 				PropertyContainer propertyContainer = new PropertyContainer(candidateNode.getAllProperties());
 				
 				NodeCreator nodeCreator = new NodeCreator(dbService, propertyContainer);
 				
-				/*
-				 * Create realNode and nullNode with relationships.
-				 */
+				// Create realNode and nullNode with relationships.
 				Node realNode = nodeCreator.createRealNode(packageNode, candidateNode);
 				Node nullNode = nodeCreator.createNullNode(packageNode, candidateNode);
 				
-				/*
-				 * Change node to abstractNode and update candidate vartype.
-				 */
-				nodeCreator.createAbstractNode(candidateNode);
+				 // Change candidate node to abstractNode and update candidate vartype.
+				Node abstractNode = nodeCreator.transformAbstractNode(candidateNode);
 				
-				/*
-				 * Create new constructors for nullNode and realNode and update controlflow of all nodes.
-				 */
-				nodeCreator.createConstructors(candidateNode, realNode, nullNode);
+				 // Create new constructors for nullNode and realNode and update controlflow of all nodes.
+				nodeCreator.createConstructors(abstractNode, realNode, nullNode);
 			
-				/*
-				 * Create new methods and change alignments.
-				 */
+				// Create new methods and change alignments.
 				MethodTransformer methtransformer = new MethodTransformer(dbService, propertyContainer);
-				methtransformer.transformMethods(candidateNode, nullNode, realNode);
+				methtransformer.transformMethods(abstractNode, nullNode, realNode);
 				
-				
-				
-				/*
-				 * At this point the candidate has been transformed using the Null Object Pattern.
-				 * Now we need to update field assigments and constructor calls.
-				 */
-
-				
-			/*
-			 * Transform candidate fields.
-			 */
-			for (Map.Entry<String, Node> distinctCandidateField : distinctCandidateFields.entrySet()){
+				/* At this point the candidate has been transformed using the Null Object Pattern.
+				 * Now we need to update field assigments and constructor calls. */
 				
 				/*
-				 * Get vartype of the candidate.
+				 * Transform candidate fields.
 				 */
-				String candidateFieldVartype = "";
-				Node mainClass = null;
-				candidateFqn = propertyContainer.getCandidateFqn();
-				
-				candidateFieldVartype = (String) distinctCandidateField.getValue().getProperty(SDGPropertyKey.VARTYPE);
-				mainClass = distinctCandidateField.getValue()
-						.getSingleRelationship(RelTypes.CONTAINS_FIELD, Direction.INCOMING).getStartNode();
-				
-				/*
-				 * Skip all candidate fields that do not belong to the current candidate.
-				 */
-				if (!candidateFieldVartype.equals(candidateFqn)){
-					continue;
-				}
-				
-				if (candidateFieldVartype.equals("")){
-					System.err.println("Not a valid candidate field.");
-					printNode(distinctCandidateField.getValue());
-					return;
-				} else if (mainClass == null) {
-					System.err.println("No valid main class found.");
-					printNode(distinctCandidateField.getValue());
-					return;
-				} else {
-					System.out.println("Started transforming the field " + candidateFieldVartype + " contained in " 
-							+ mainClass.getProperty(SDGPropertyKey.FQN) + ".");
-				}
-				
-				/*
-				 * Get assignments in if-statements belonging to this vartype.
-				 */
-				Map<String, Node> candidateConditionAssignments = new HashMap<>();
-				for (String key : distinctConditionAssignments.keySet()){
-					Node node = distinctConditionAssignments.get(key);
-					if (node.getProperty(SDGPropertyKey.VARTYPE).toString().equals(candidateFieldVartype)){
-						candidateConditionAssignments.put(key,node);
+				for (Map.Entry<String, Node> distinctCandidateField : distinctCandidateFields.entrySet()){
+					
+					/*
+					 * Get vartype of the candidate.
+					 */
+					String candidateFieldVartype = "";
+					Node callerClass = null;
+					candidateFqn = propertyContainer.getCandidateFqn();
+					
+					candidateFieldVartype = (String) distinctCandidateField.getValue().getProperty(SDGPropertyKey.VARTYPE);
+					callerClass = distinctCandidateField.getValue()
+							.getSingleRelationship(RelTypes.CONTAINS_FIELD, Direction.INCOMING).getStartNode();
+					
+					/*
+					 * Skip all candidate fields that do not belong to the current candidate.
+					 */
+					if (!candidateFieldVartype.equals(candidateFqn)){
+						continue;
+					}
+					
+					if (candidateFieldVartype.equals("")){
+						System.err.println("Not a valid candidate field.");
+						printNode(distinctCandidateField.getValue());
+						return;
+					} else if (callerClass == null) {
+						System.err.println("No valid main class found.");
+						printNode(distinctCandidateField.getValue());
+						return;
+					} else {
+						System.out.println("Started transforming the field " + candidateFieldVartype + " contained in " 
+								+ callerClass.getProperty(SDGPropertyKey.FQN) + ".");
+					}
+					
+					/*
+					 * Get assignments in if-statements belonging to this vartype.
+					 */
+					Map<String, Node> candidateConditionAssignments = new HashMap<>();
+					for (String key : distinctConditionAssignments.keySet()){
+						Node node = distinctConditionAssignments.get(key);
+						if (node.getProperty(SDGPropertyKey.VARTYPE).toString().equals(candidateFieldVartype)){
+							candidateConditionAssignments.put(key,node);
+						}
+					}
+					System.out.println("Found [" + candidateConditionAssignments.size() + "] "
+							+ "condition nodes belonging to fields of this candidate in this class.");
+					
+					/*
+					 * Remove the assignments from if statements.
+					 */
+					for (String key : candidateConditionAssignments.keySet()){
+						removeAssignmentFromConditions(candidateConditionAssignments.get(key));
+						distinctConditionAssignments.remove(key);
 					}
 				}
-				System.out.println("Found [" + candidateConditionAssignments.size() + "] condition nodes belonging to fields of this candidate in this class.");
 				
 				/*
-				 * Remove the assignments from if statements.
-				 */
-				for (String key : candidateConditionAssignments.keySet()){
-					removeAssignmentFromConditions(candidateConditionAssignments.get(key));
-					distinctConditionAssignments.remove(key);
+				 * Change vartype of all fields with the previous type of the candidate node to the abstract type.
+				 */			
+			
+				ResourceIterator<Node> similarFields = dbService.findNodes(
+						SDGLabel.FIELD, 
+						SDGPropertyKey.VARTYPE,
+						candidateFqn);
+				List<Long> callerClassIds = new ArrayList<>();
+				
+				while (similarFields.hasNext()){
+					Node similarField = similarFields.next();
+					similarField.setProperty(SDGPropertyKey.VARTYPE, propertyContainer.getAbstractFqn());
+					updateFieldAssigments(similarField, propertyContainer.getAbstractFqn());
+					
+					/*
+					 * Add all mainClasses containing a candidate field to mainClass ids.
+					 */
+					Node callerClass = similarField.getSingleRelationship(
+							RelTypes.CONTAINS_FIELD, 
+							Direction.INCOMING)
+							.getStartNode();
+					long callerClassId = callerClass.getId();
+					if (!callerClassIds.contains(callerClassId)){
+						callerClassIds.add(callerClassId);
+					}
 				}
-			}
-			
-			/*
-			 * Change vartype of all fields with the previous type of the candidate node to the abstract type.
-			 */			
-		
-			ResourceIterator<Node> similarFields = dbService.findNodes(SDGLabel.FIELD, SDGPropertyKey.VARTYPE, candidateFqn);
-			List<Long> mainClassIds = new ArrayList<>();
-			
-			while (similarFields.hasNext()){
-				Node similarField = similarFields.next();
-				similarField.setProperty(SDGPropertyKey.VARTYPE, propertyContainer.getAbstractFqn());
-				updateFieldAssigments(similarField, propertyContainer.getAbstractFqn());
+				similarFields.close();
 				
 				/*
-				 * Add all mainClasses containing a candidate field to mainClass ids.
+				 * Find uninitialized fields of type abstractFqn for every class in mainClassIds an initialize them.
 				 */
-				Node mainClass = similarField.getSingleRelationship(RelTypes.CONTAINS_FIELD, Direction.INCOMING).getStartNode();
-				long mainClassId = mainClass.getId();
-				if (!mainClassIds.contains(mainClassId)){
-					mainClassIds.add(mainClassId);
+				for (long id : callerClassIds){
+					Node callerClass = dbService.getNodeById(id);
+					findAndInitializeUninitializedFields(callerClass, id, propertyContainer.getAbstractFqn(), nullNode);
 				}
-			}
-			similarFields.close();
-			
-			/*
-			 * Find uninitialized fields of type abstractFqn for every class in mainClassIds an initialize them.
-			 */
-			for (long id : mainClassIds){
-				Node mainClass = dbService.getNodeById(id);
-				findAndInitializeUninitializedFields(mainClass, id, propertyContainer.getAbstractFqn(), nullNode);
-			}
-			
-			//End of candidate Transaction
-			tx.success();
+				
+				//End of candidate Transaction
+				tx.success();
 		}
 			
 			System.out.println("Transformed candidate node: " + candidateFqn + " (" + candidateNode.toString() + ")");
@@ -275,27 +260,27 @@ public class NullObjectTransformation implements Transformation {
 	/**
 	 * Finds all fields of a vartype that are not initialized within the main class constructors and
 	 * initializes them with the null object.
-	 * @param mainClass
-	 * @param mainClassId
+	 * @param callerClass
+	 * @param callerClassId
 	 * @param vartype
 	 * @param nullNode
 	 */
-	private void findAndInitializeUninitializedFields(Node mainClass, long mainClassId, String vartype, Node nullNode){
+	private void findAndInitializeUninitializedFields(Node callerClass, long callerClassId, String vartype, Node nullNode){
 		
 		String uninitializedFieldQuery = QueryReader.readQuery(QueryPaths.uninitializedFieldQueryPath);
 		Map<String, Object> params = new HashMap<>();
 		params.put("vartype", vartype);
-		params.put("mainClassId", mainClassId);
+		params.put("callerClassId", callerClassId);
 			
 		Result result = dbService.execute(uninitializedFieldQuery, params);
 		
-		ResourceIterator<Node> fields = result.columnAs("n");
+		ResourceIterator<Node> fields = result.columnAs("field");
 		List<Node> constructors = new ArrayList<Node>();
-		for (Relationship rel : mainClass.getRelationships(RelTypes.CONTAINS_CONSTRUCTOR, Direction.OUTGOING)){
+		for (Relationship rel : callerClass.getRelationships(RelTypes.CONTAINS_CONSTRUCTOR, Direction.OUTGOING)){
 			constructors.add(rel.getEndNode());
 		}
 		
-		String mainFqn = (String) mainClass.getProperty(SDGPropertyKey.FQN);
+		String mainFqn = (String) callerClass.getProperty(SDGPropertyKey.FQN);
 		int fieldNum = 0;
 		while (fields.hasNext()){
 			Node field = fields.next();
@@ -554,9 +539,9 @@ public class NullObjectTransformation implements Transformation {
 	/**
 	 * Check if match() has been called. This is necessary for transformation methods.
 	 */
-	private void isMatched(){
+	private void checkIsMatched(){
 		if (!hasMatchedCandidate) {
-			System.out.println("Call match() before calling transform().");
+			System.err.println("Call match() before calling transform().");
 			return;
 		} else {
 			System.out.println("Started transforming ...");
