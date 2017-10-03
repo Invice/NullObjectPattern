@@ -15,6 +15,8 @@ public class PropertyContainer {
 	private String abstractPrefix = "Abstract";
 	private String nullPrefix = "Null";
 	
+	private int prefixCount = -1;
+	
 	private String realFqn;
 	private String nullFqn;
 	private String abstractFqn;
@@ -28,13 +30,24 @@ public class PropertyContainer {
 	}	
 	
 	public void updateFqns(){
-		realFqn = StringUtil.addPrefixToClass(realPrefix, candidateProperties.get(SDGPropertyKey.FQN));
-		nullFqn = StringUtil.addPrefixToClass(nullPrefix, candidateProperties.get(SDGPropertyKey.FQN));	
-		abstractFqn = StringUtil.addPrefixToClass(abstractPrefix, candidateProperties.get(SDGPropertyKey.FQN));
+		realFqn = StringUtil.addPrefixToClass(getRealPrefix(), candidateProperties.get(SDGPropertyKey.FQN));
+		nullFqn = StringUtil.addPrefixToClass(getNullPrefix(), candidateProperties.get(SDGPropertyKey.FQN));	
+		abstractFqn = StringUtil.addPrefixToClass(getAbstractPrefix(), candidateProperties.get(SDGPropertyKey.FQN));
 	}
 	
+	/**
+	 * Adds an increasing number to the prefixes and updates the fqns.
+	 */
+	public void increasePrefixNum(){
+		prefixCount++;
+		updateFqns();
+		System.out.println("FQN already in use. Increasing prefixCount to " + prefixCount + ".");
+	}
 	
 	public String getRealPrefix() {
+		if (prefixCount >= 0) {
+			return realPrefix + prefixCount;
+		}
 		return realPrefix;
 	}
 
@@ -45,6 +58,9 @@ public class PropertyContainer {
 
 
 	public String getAbstractPrefix() {
+		if (prefixCount >= 0) {
+			return abstractPrefix + prefixCount;
+		}
 		return abstractPrefix;
 	}
 
@@ -55,6 +71,9 @@ public class PropertyContainer {
 
 
 	public String getNullPrefix() {
+		if (prefixCount >= 0) {
+			return nullPrefix + prefixCount;
+		}
 		return nullPrefix;
 	}
 

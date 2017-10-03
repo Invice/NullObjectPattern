@@ -1,4 +1,4 @@
-MATCH (field:Field {vartype: $vartype})<-[:CONTAINS_FIELD]-(main:Class)
-	WHERE id(main) =  $callerClassId
-		AND NOT (field)<-[:AGGREGATED_FIELD_WRITE]-(:Constructor)<-[:CONTAINS_CONSTRUCTOR]-(main)
+MATCH (field:Field {vartype: $vartype})<-[:CONTAINS_FIELD]-(callerClass:Class)
+	WHERE id(callerClass) =  $callerClassId
+		AND NOT (field)<-[:AGGREGATED_FIELD_WRITE]-(:Constructor)<-[:CONTAINS_CONSTRUCTOR]-(callerClass)
 RETURN field

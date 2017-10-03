@@ -11,7 +11,7 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Result;
 
 import com.tnr.neo4j.java.nullobject.transformation.util.PropertyContainer;
-import com.tnr.neo4j.java.nullobject.util.Constants;
+import com.tnr.neo4j.java.nullobject.util.GraphDatabaseConstants;
 import com.tnr.neo4j.java.nullobject.util.RelTypes;
 import com.tnr.neo4j.java.nullobject.util.SDGLabel;
 import com.tnr.neo4j.java.nullobject.util.SDGPropertyKey;

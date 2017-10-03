@@ -29,4 +29,10 @@ public interface Transformation {
 	 * @param node
 	 */
 	public void printNode(Node n);
+	
+	/**
+	 * Calls all methods to transform the sdg in a Neo4J database.
+	 */
+	public void execute();
+	
 }

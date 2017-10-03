@@ -1,6 +1,6 @@
 package com.tnr.neo4j.java.nullobject.util;
 
-public class Constants {
+public class GraphDatabaseConstants {
 	public static final String GraphDatabaseLocation = "C:\\Users\\Tim-Niklas Reck\\Desktop\\Bachelorarbeit\\sootexample\\databases\\";
 			
 	public static final String antDB = "org.apache.tools.ant.Main";		

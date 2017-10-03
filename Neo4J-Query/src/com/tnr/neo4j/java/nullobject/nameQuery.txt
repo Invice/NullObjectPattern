@@ -1,0 +1,5 @@
+MATCH (class:Class)
+	WHERE class.fqn = $realFqn
+	 	OR class.fqn = $abstractFqn 
+	 	OR class.fqn = $nullFqn
+RETURN class
